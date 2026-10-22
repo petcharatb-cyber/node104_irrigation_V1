@@ -4,7 +4,9 @@
 #include "esp_err.h"
 
 typedef enum {
-    FIREBASE_RESOURCE_ZONES,
+    FIREBASE_RESOURCE_TELEMETRY,
+    FIREBASE_RESOURCE_STATUS,
+    FIREBASE_RESOURCE_COMMANDS,
     FIREBASE_RESOURCE_CONFIG,
 } firebase_resource_t;
 

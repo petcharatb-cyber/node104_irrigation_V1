@@ -1,6 +1,7 @@
 #include "firebase_client.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,12 +38,39 @@ typedef struct {
 static const char *resource_path(firebase_resource_t resource)
 {
     switch (resource) {
-    case FIREBASE_RESOURCE_ZONES:
-        return CONFIG_N100_FIREBASE_ZONES_PATH;
+    case FIREBASE_RESOURCE_TELEMETRY:
+        return CONFIG_N100_FIREBASE_TELEMETRY_PATH;
+    case FIREBASE_RESOURCE_STATUS:
+        return CONFIG_N100_FIREBASE_STATUS_PATH;
+    case FIREBASE_RESOURCE_COMMANDS:
+        return CONFIG_N100_FIREBASE_COMMANDS_PATH;
     case FIREBASE_RESOURCE_CONFIG:
         return CONFIG_N100_FIREBASE_CONFIG_PATH;
     default:
         return NULL;
+    }
+}
+
+static const firebase_resource_t s_firebase_resources[] = {
+    FIREBASE_RESOURCE_TELEMETRY,
+    FIREBASE_RESOURCE_STATUS,
+    FIREBASE_RESOURCE_COMMANDS,
+    FIREBASE_RESOURCE_CONFIG,
+};
+
+static const char *resource_name(firebase_resource_t resource)
+{
+    switch (resource) {
+    case FIREBASE_RESOURCE_TELEMETRY:
+        return "telemetry";
+    case FIREBASE_RESOURCE_STATUS:
+        return "status";
+    case FIREBASE_RESOURCE_COMMANDS:
+        return "commands";
+    case FIREBASE_RESOURCE_CONFIG:
+        return "config";
+    default:
+        return "unknown";
     }
 }
 
@@ -220,7 +248,7 @@ static esp_err_t build_resource_url(firebase_resource_t resource, char **url_out
     const uint32_t resource_log_bit = 1U << resource;
     if ((s_logged_resource_paths & resource_log_bit) == 0) {
         ESP_LOGI(TAG, "Firebase resource %s path: %.*s",
-                 resource == FIREBASE_RESOURCE_ZONES ? "zones" : "config",
+                 resource_name(resource),
                  (int)path_length, path);
         s_logged_resource_paths |= resource_log_bit;
     }
@@ -491,7 +519,7 @@ esp_err_t firebase_client_set_power_mode(firebase_power_mode_t mode)
         return ESP_ERR_NO_MEM;
     }
 
-    const esp_err_t err = firebase_client_patch(FIREBASE_RESOURCE_ZONES, document);
+    const esp_err_t err = firebase_client_patch(FIREBASE_RESOURCE_STATUS, document);
     cJSON_Delete(document);
     return err;
 }
@@ -499,11 +527,19 @@ esp_err_t firebase_client_set_power_mode(firebase_power_mode_t mode)
 static void firebase_polling_task(void *argument)
 {
     (void)argument;
+    static const firebase_resource_t polled_resources[] = {
+        FIREBASE_RESOURCE_COMMANDS,
+        FIREBASE_RESOURCE_CONFIG,
+    };
+    const TickType_t poll_period =
+        pdMS_TO_TICKS(CONFIG_N100_FIREBASE_POLL_INTERVAL_MS);
     vTaskDelay(pdMS_TO_TICKS(3000));
 
     for (;;) {
-        for (firebase_resource_t resource = FIREBASE_RESOURCE_ZONES;
-             resource <= FIREBASE_RESOURCE_CONFIG; ++resource) {
+        const TickType_t poll_start = xTaskGetTickCount();
+        for (size_t index = 0;
+             index < sizeof(polled_resources) / sizeof(polled_resources[0]); ++index) {
+            const firebase_resource_t resource = polled_resources[index];
             cJSON *document = NULL;
             esp_err_t err = get_document(resource, &document);
             if (err == ESP_OK) {
@@ -514,7 +550,10 @@ static void firebase_polling_task(void *argument)
                          resource, esp_err_to_name(err));
             }
         }
-        vTaskDelay(pdMS_TO_TICKS(CONFIG_N100_FIREBASE_POLL_INTERVAL_MS));
+        const TickType_t elapsed = xTaskGetTickCount() - poll_start;
+        if (elapsed < poll_period) {
+            vTaskDelay(poll_period - elapsed);
+        }
     }
 }
 
@@ -537,8 +576,9 @@ esp_err_t firebase_client_start(firebase_document_callback_t callback, void *con
         return ESP_ERR_INVALID_STATE;
     }
 
-    for (firebase_resource_t resource = FIREBASE_RESOURCE_ZONES;
-         resource <= FIREBASE_RESOURCE_CONFIG; ++resource) {
+    for (size_t index = 0;
+         index < sizeof(s_firebase_resources) / sizeof(s_firebase_resources[0]); ++index) {
+        const firebase_resource_t resource = s_firebase_resources[index];
         char *url = NULL;
         esp_err_t err = build_resource_url(resource, &url);
         if (err != ESP_OK) {

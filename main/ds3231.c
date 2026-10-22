@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "driver/i2c_master.h"
+#include "n100_i2c_bus.h"
 
 #define DS3231_I2C_ADDRESS 0x68
 #define DS3231_REG_SECONDS 0x00
@@ -17,7 +18,6 @@
 #define DS3231_INTCN_MASK  0x04
 #define DS3231_OSF_MASK    0x80
 
-static i2c_master_bus_handle_t s_i2c_bus;
 static i2c_master_dev_handle_t s_ds3231;
 
 static uint8_t to_bcd(uint8_t value)
@@ -120,30 +120,12 @@ static esp_err_t write_register(uint8_t reg, uint8_t value)
 
 esp_err_t ds3231_init(gpio_num_t sda_gpio, gpio_num_t scl_gpio)
 {
-    const i2c_master_bus_config_t bus_config = {
-        .i2c_port = -1,
-        .sda_io_num = sda_gpio,
-        .scl_io_num = scl_gpio,
-        .clk_source = I2C_CLK_SRC_DEFAULT,
-        .glitch_ignore_cnt = 7,
-        .flags.enable_internal_pullup = true,
-    };
-    esp_err_t err = i2c_new_master_bus(&bus_config, &s_i2c_bus);
+    esp_err_t err = n100_i2c_bus_init(sda_gpio, scl_gpio);
     if (err != ESP_OK) {
         return err;
     }
 
-    const i2c_device_config_t device_config = {
-        .dev_addr_length = I2C_ADDR_BIT_LEN_7,
-        .device_address = DS3231_I2C_ADDRESS,
-        .scl_speed_hz = 100000,
-    };
-    err = i2c_master_bus_add_device(s_i2c_bus, &device_config, &s_ds3231);
-    if (err != ESP_OK) {
-        i2c_del_master_bus(s_i2c_bus);
-        s_i2c_bus = NULL;
-    }
-    return err;
+    return n100_i2c_bus_add_device(DS3231_I2C_ADDRESS, 100000, &s_ds3231);
 }
 
 esp_err_t ds3231_get_time(struct tm *time_info)
