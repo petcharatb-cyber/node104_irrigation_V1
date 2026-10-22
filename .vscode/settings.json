@@ -1,0 +1,42 @@
+{
+  "C_Cpp.intelliSenseEngine": "default",
+  "idf.extensionActivationMode": "always",
+  "cmake.configureOnOpen": false,
+  "cmake.configureOnEdit": false,
+  "cmake.automaticReconfigure": false,
+  "cmake.autoSelectActiveFolder": false,
+  "cmake.options.advanced": {
+    "build": {
+      "statusBarVisibility": "inherit",
+      "inheritDefault": "hidden"
+    },
+    "launch": {
+      "statusBarVisibility": "inherit",
+      "inheritDefault": "hidden"
+    },
+    "debug": {
+      "statusBarVisibility": "inherit",
+      "inheritDefault": "hidden"
+    }
+  },
+  "idf.openOcdConfigs": [
+    "board/esp32s3-builtin.cfg"
+  ],
+  "idf.port": "COM9",
+  "idf.currentSetup": "C:\\esp\\v6.0.1\\esp-idf",
+  "idf.customExtraVars": {
+    "IDF_TARGET": "esp32s3"
+  },
+  "clangd.path": "C:\\Espressif\\tools\\esp-clang\\esp-20.1.1_20250829\\esp-clang\\bin\\clangd.exe",
+  "clangd.arguments": [
+    "--background-index",
+    "--query-driver=**",
+    "--compile-commands-dir=c:\\ESP32_IDF_PROJECT\\smart_garden\\node100_irrigation_master\\build"
+  ],
+  "chat.tools.terminal.autoApprove": {
+    "/^\\$env:IDF_TOOLS_PATH; \\$env:IDF_PYTHON_ENV_PATH; Test-Path 'C:\\\\Users\\\\User\\\\\\.espressif\\\\tools\\.json'; if \\(Test-Path 'C:\\\\Users\\\\User\\\\\\.espressif\\\\tools\\.json'\\) \\{ Get-Content 'C:\\\\Users\\\\User\\\\\\.espressif\\\\tools\\.json' \\| Select-Object -First 80 \\}$/": {
+      "approve": true,
+      "matchCommandLine": true
+    }
+  }
+}

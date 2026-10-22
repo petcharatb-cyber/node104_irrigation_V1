@@ -1,0 +1,81 @@
+menu "Node100 Irrigation Master"
+
+    config N100_WIFI_SSID
+        string "Wi-Fi SSID"
+        default ""
+
+    config N100_WIFI_PASSWORD
+        string "Wi-Fi password"
+        default ""
+
+    config N100_I2C_SDA_GPIO
+        int "DS3231 I2C SDA GPIO"
+        range 0 48
+        default 8
+
+    config N100_I2C_SCL_GPIO
+        int "DS3231 I2C SCL GPIO"
+        range 0 48
+        default 9
+
+    config N100_RTC_INT_GPIO
+        int "DS3231 SQW/INT GPIO (ESP32-S3 RTC GPIO)"
+        range 0 21
+        default 4
+        help
+            GPIO connected to the DS3231 SQW/INT pin. This must be an RTC GPIO
+            on ESP32-S3 (GPIO0-21) for EXT1 deep-sleep wakeup.
+
+    config N100_NTP_SERVER
+        string "NTP server"
+        default "pool.ntp.org"
+
+    config N100_TIMEZONE
+        string "POSIX timezone"
+        default "ICT-7"
+
+    config N100_FIREBASE_DATABASE_URL
+        string "Firebase Realtime Database URL"
+        default "https://smartgarden-v1-c83ce-default-rtdb.asia-southeast1.firebasedatabase.app"
+        help
+            Use the HTTPS database root URL without a trailing slash.
+
+    config N100_FIREBASE_ZONES_PATH
+        string "Firebase zones path"
+        default "node100/zones"
+
+    config N100_FIREBASE_CONFIG_PATH
+        string "Firebase system config path"
+        default "node100_config"
+
+    config N100_FIREBASE_AUTH_TOKEN
+        string "Firebase auth token or legacy URL (keep local)"
+        default ""
+        help
+            Enter only the token value, not the database URL or the auth=
+            query parameter prefix. Configure the database URL and paths above.
+            A legacy Firebase URL containing ?auth= is also accepted. Its path
+            is ignored; the configured resource paths above are always used.
+            The default transport sends a Firebase ID token in the Authorization
+            header.
+
+    choice N100_FIREBASE_AUTH_TRANSPORT
+        prompt "Firebase auth token transport"
+        default N100_FIREBASE_AUTH_HEADER
+
+        config N100_FIREBASE_AUTH_HEADER
+            bool "Authorization Bearer header (recommended)"
+
+        config N100_FIREBASE_AUTH_QUERY
+            bool "URL query parameter (legacy tokens)"
+            help
+                Use ?auth= only when required by a legacy Firebase token.
+                Query tokens may be exposed by URL logging.
+    endchoice
+
+    config N100_FIREBASE_POLL_INTERVAL_MS
+        int "Firebase polling interval (milliseconds)"
+        range 1000 3600000
+        default 30000
+
+endmenu
