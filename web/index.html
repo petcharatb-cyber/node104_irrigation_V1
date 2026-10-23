@@ -3,11 +3,135 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta http-equiv="refresh" content="0;url=Node100_%20IMS_Master.html">
-  <title>Node100 | Irrigation Management System</title>
+  <meta name="theme-color" content="#f5f8f7">
+  <meta name="description" content="เข้าสู่ระบบ Irrigation Management System">
+  <title>เข้าสู่ระบบ | Node100 Irrigation</title>
+  <script defer src="/__/firebase/13.1.0/firebase-app-compat.js"></script>
+  <script defer src="/__/firebase/13.1.0/firebase-auth-compat.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f5f8f7;
+      --surface: #fff;
+      --ink: #182a26;
+      --muted: #73817d;
+      --line: #e7eeeb;
+      --green: #147d62;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+    }
+
+    * { box-sizing: border-box; }
+    body { display: grid; min-width: 320px; min-height: 100vh; min-height: 100svh; margin: 0; place-items: center; padding: 24px 18px calc(24px + env(safe-area-inset-bottom)); background: var(--page); color: var(--ink); }
+    .auth-card { width: min(100%, 420px); padding: 26px; border: 1px solid var(--line); border-radius: 24px; background: var(--surface); box-shadow: 0 10px 30px rgba(31, 65, 54, .07); }
+    .brand { margin: 0 0 24px; color: var(--green); font-size: 12px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: 24px; letter-spacing: -.04em; }
+    .description { margin: 8px 0 20px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+    .status { color: var(--muted); }
+    .status[hidden], .sign-in-form[hidden] { display: none; }
+    .field { display: grid; gap: 7px; margin-top: 14px; }
+    label { font-size: 13px; font-weight: 650; }
+    input { width: 100%; min-height: 46px; padding: 0 12px; border: 1px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink); font: inherit; }
+    button { width: 100%; min-height: 46px; margin-top: 10px; border: 0; border-radius: 13px; background: var(--green); color: #fff; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+    button:focus-visible, input:focus-visible { outline: 3px solid rgba(20, 125, 98, .3); outline-offset: 2px; }
+    button:disabled { cursor: wait; opacity: .7; }
+    .error { min-height: 20px; margin: 12px 0 8px; color: #b43d39; font-size: 12px; line-height: 1.5; }
+  </style>
 </head>
 <body>
-  <p>กำลังเปิด Irrigation Management System… หากไม่เปลี่ยนหน้า <a href="Node100_%20IMS_Master.html">แตะที่นี่เพื่อเปิดหน้า Master</a></p>
-  <script>window.location.replace("Node100_%20IMS_Master.html");</script>
+  <main class="auth-card">
+    <p class="brand">Node100 Irrigation</p>
+    <h1>เข้าสู่ระบบ</h1>
+    <p id="auth-status" class="description status" role="status">กำลังตรวจสอบสถานะการเข้าสู่ระบบ…</p>
+    <form id="sign-in-form" class="sign-in-form" hidden>
+      <p class="description">ลงชื่อเข้าใช้ด้วยบัญชีที่ได้รับอนุญาตเพื่อเข้าใช้งานระบบจัดการน้ำ</p>
+      <div class="field">
+        <label for="email">อีเมล</label>
+        <input id="email" name="email" type="email" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="password">รหัสผ่าน</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+      </div>
+      <p id="auth-error" class="error" role="alert" aria-live="polite"></p>
+      <button id="sign-in" type="submit">เข้าสู่ระบบ</button>
+    </form>
+  </main>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const firebaseConfig = {
+        apiKey: "AIzaSyCNOVy-CC45WMs1Fp5BXZG6nVX9gGSqdBQ",
+        authDomain: "smartgarden-v1-c83ce.firebaseapp.com",
+        projectId: "smartgarden-v1-c83ce",
+        appId: "1:625774766209:web:3c6319649e96f2aba6c580"
+      };
+      const status = document.getElementById("auth-status");
+      const form = document.getElementById("sign-in-form");
+      const errorMessage = document.getElementById("auth-error");
+      const signInButton = document.getElementById("sign-in");
+      let auth = null;
+
+      function showSignInError(error) {
+        const messages = {
+          "auth/invalid-email": "รูปแบบอีเมลไม่ถูกต้อง",
+          "auth/user-disabled": "บัญชีนี้ถูกระงับการใช้งาน",
+          "auth/user-not-found": "ไม่พบบัญชีนี้",
+          "auth/wrong-password": "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
+          "auth/invalid-credential": "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
+          "auth/too-many-requests": "พยายามเข้าสู่ระบบหลายครั้งเกินไป กรุณารอสักครู่",
+          "auth/network-request-failed": "เชื่อมต่อ Firebase ไม่สำเร็จ ตรวจสอบอินเทอร์เน็ต"
+        };
+        errorMessage.textContent = messages[error.code] || "เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบบัญชีและการตั้งค่า Firebase Authentication";
+        console.error("Firebase sign-in failed.", error);
+      }
+
+      if (!window.firebase || !firebase.auth) {
+        status.textContent = "Firebase SDK โหลดไม่สำเร็จ กรุณาเปิดหน้าเว็บผ่าน Firebase Hosting";
+        form.hidden = false;
+        signInButton.disabled = true;
+        return;
+      }
+
+      try {
+        if (firebase.apps.length === 0) firebase.initializeApp(firebaseConfig);
+        auth = firebase.auth();
+        auth.onAuthStateChanged((user) => {
+          if (user) {
+            window.location.replace("Node100_%20IMS_Master.html");
+            return;
+          }
+          status.hidden = true;
+          form.hidden = false;
+        }, (error) => {
+          console.error("Firebase authentication state listener failed.", error);
+          status.textContent = "ตรวจสอบสถานะการเข้าสู่ระบบไม่สำเร็จ";
+          form.hidden = false;
+          signInButton.disabled = true;
+        });
+      } catch (error) {
+        console.error("Firebase initialization failed.", error);
+        status.textContent = "เริ่มต้น Firebase ไม่สำเร็จ กรุณาตรวจสอบการตั้งค่าโปรเจกต์";
+        form.hidden = false;
+        signInButton.disabled = true;
+      }
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        errorMessage.textContent = "";
+        signInButton.disabled = true;
+        try {
+          await auth.signInWithEmailAndPassword(
+            document.getElementById("email").value.trim(),
+            document.getElementById("password").value
+          );
+        } catch (error) {
+          showSignInError(error);
+        } finally {
+          signInButton.disabled = false;
+        }
+      });
+    });
+  </script>
 </body>
 </html>

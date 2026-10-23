@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Garden Management</title>
+    <!-- โหลด Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- โหลด FontAwesome สำหรับ Icon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @keyframes blink { 50% { opacity: 0; } }
+        .dot-blink { animation: blink 1s linear infinite; }
+        
+        /* สไตล์สำหรับ Toggle Switch */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #68D391;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #68D391;
+        }
+        .toggle-checkbox {
+            right: 0;
+            z-index: 1;
+            border-color: #e2e8f0;
+            transition: all 0.3s;
+        }
+        .toggle-label {
+            width: 3rem;
+            height: 1.5rem;
+            background-color: #cbd5e0;
+            border-radius: 9999px;
+            transition: all 0.3s;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans">
+
+    <!-- ================= ส่วนที่ 1: หน้าจอ Login (ซ่อนไว้เพื่อทำ Auto-Login รักษาระบบเดิม) ================= -->
+    <div id="login-section" class="hidden">
+        <input type="email" id="email-input">
+        <input type="password" id="password-input">
+        <p id="login-error"></p>
+        <button id="login-btn">เข้าสู่ระบบ</button>
+    </div>
+
+    <!-- ================= ส่วนที่ 2: หน้า Dashboard ================= -->
+    <div id="dashboard-section" class="hidden">
+        
+        <!-- Top Bar -->
+        <header class="sticky top-0 bg-white shadow-md z-50 p-4">
+            <div class="max-w-7xl mx-auto flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold text-green-600">Smart Garden Managements</h1>
+                    <p class="text-sm text-gray-500"><i class="fa-solid fa-cloud text-blue-500"></i> Firebase Cloud Sync: <span id="status-firebase" class="text-gray-400 font-bold dot-blink">Connecting...</span></p>
+                    <p class="text-sm text-gray-500"><i class="fa-solid fa-microchip text-gray-700"></i> ESP32-S3 Board: <span id="status-esp32" class="text-gray-400 font-bold dot-blink">Waiting...</span></p>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <!-- เปลี่ยน href เพื่อกำหนดไฟล์ปลายทางของปุ่ม Home -->
+                    <a id="home-button" href="Node100_ IMS_Master.html" aria-label="กลับหน้าหลัก"
+                       class="inline-flex min-h-[42px] items-center gap-2 rounded-xl border border-green-100 bg-green-50 px-4 py-2 font-semibold text-green-700 shadow-sm transition hover:-translate-y-0.5 hover:border-green-200 hover:bg-green-100 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-green-100">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="m3.5 10.5 8.5-7 8.5 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M5.5 9.5v10h5.25v-5.75h2.5v5.75h5.25v-10M9.5 19.5v-3.75h5v3.75" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <span>Home</span>
+                    </a>
+                    <!-- ซ่อนปุ่มออกจากระบบ เนื่องจากไม่มีหน้าจอ Login แล้ว -->
+                    <button id="logout-btn" class="hidden" type="button">
+                        ออกจากระบบ
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="max-w-7xl mx-auto p-4 space-y-8 mt-4">
+            
+            <!-- Sensor Dashboard -->
+            <section>
+                <h2 class="text-xl font-semibold mb-4 text-gray-700">Sensor Dashboard</h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <!-- อุณหภูมิ -->
+                    <div class="bg-white p-4 rounded-xl shadow text-center flex flex-col items-center border-b-[6px] border-blue-600">
+                        <div class="flex items-center space-x-2 mb-2">
+                            <div class="w-3 h-3 bg-green-500 rounded-full dot-blink"></div>
+                            <i class="fa-solid fa-temperature-half text-blue-500 text-2xl"></i>
+                        </div>
+                        <p class="text-gray-500 text-sm">อุณหภูมิ</p>
+                        <p class="text-2xl font-bold"><span id="val-temp">--</span> °C</p>
+                    </div>
+
+                    <!-- ความชื้นอากาศ -->
+                    <div class="bg-white p-4 rounded-xl shadow text-center flex flex-col items-center border-b-[6px] border-cyan-400">
+                        <div class="flex items-center space-x-2 mb-2">
+                            <div class="w-3 h-3 bg-green-500 rounded-full dot-blink"></div>
+                            <i class="fa-solid fa-droplet text-cyan-400 text-2xl"></i>
+                        </div>
+                        <p class="text-gray-500 text-sm">ความชื้นอากาศ</p>
+                        <p class="text-2xl font-bold"><span id="val-hum">--</span> %</p>
+                    </div>
+
+                    <!-- ความเข้มแสง -->
+                    <div class="bg-white p-4 rounded-xl shadow text-center flex flex-col items-center border-b-[6px] border-yellow-400">
+                        <div class="flex items-center space-x-2 mb-2">
+                            <div class="w-3 h-3 bg-green-500 rounded-full dot-blink"></div>
+                            <i class="fa-solid fa-sun text-yellow-400 text-2xl"></i>
+                        </div>
+                        <p class="text-gray-500 text-sm">ความเข้มแสง</p>
+                        <p class="text-2xl font-bold"><span id="val-lux">--</span> lx</p>
+                    </div>
+
+                    <!-- ความชื้นดิน -->
+                    <div class="bg-white p-4 rounded-xl shadow text-center flex flex-col items-center border-b-[6px] border-green-600">
+                        <div class="flex items-center space-x-2 mb-2">
+                            <div class="w-3 h-3 bg-green-500 rounded-full dot-blink"></div>
+                            <i class="fa-solid fa-seedling text-green-600 text-2xl"></i>
+                        </div>
+                        <p class="text-gray-500 text-sm">ความชื้นดิน</p>
+                        <p class="text-2xl font-bold"><span id="val-soil">--</span> %</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Control Panel -->
+            <section>
+                <div class="bg-white p-6 rounded-2xl shadow-md border border-gray-200">
+                    <h2 class="text-xl font-semibold mb-5 text-gray-700 border-b pb-3">Relay and Pump Status Monitor</h2>
+                    
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                        
+                        <!-- 1. ระบายอากาศ (Temperature) -->
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between min-h-[120px] hover:shadow-md transition-shadow">
+                            <div class="flex justify-between items-start">
+                                <span id="badge-mode-temp" class="px-3 py-1 text-[11px] text-white rounded-full bg-blue-500 font-semibold shadow-sm">Auto</span>
+                                <button id="btn-relay-temp" class="text-3xl text-red-500 transition-transform hover:scale-110" onclick="toggleRelay('relay_temp_req', 'btn-relay-temp', 'temp')">
+                                    <i class="fa-solid fa-power-off"></i>
+                                </button>
+                            </div>
+                            <div>
+                                <p class="font-bold text-gray-700 text-sm mt-3">ระบายอากาศ</p>
+                                <button id="btn-auto-temp" class="text-xs text-gray-500 underline mt-1 text-left hidden hover:text-blue-600 transition-colors" onclick="setAutoMode('temp')">
+                                    <i class="fa-solid fa-rotate-left"></i> คืนค่า Auto
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 2. ความชื้นอากาศ (Humidity) -->
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between min-h-[120px] hover:shadow-md transition-shadow">
+                            <div class="flex justify-between items-start">
+                                <span id="badge-mode-hum" class="px-3 py-1 text-[11px] text-white rounded-full bg-blue-500 font-semibold shadow-sm">Auto</span>
+                                <button id="btn-relay-hum" class="text-3xl text-red-500 transition-transform hover:scale-110" onclick="toggleRelay('relay_hum_req', 'btn-relay-hum', 'hum')">
+                                    <i class="fa-solid fa-power-off"></i>
+                                </button>
+                            </div>
+                            <div>
+                                <p class="font-bold text-gray-700 text-sm mt-3">ความชื้นอากาศ</p>
+                                <button id="btn-auto-hum" class="text-xs text-gray-500 underline mt-1 text-left hidden hover:text-blue-600 transition-colors" onclick="setAutoMode('hum')">
+                                    <i class="fa-solid fa-rotate-left"></i> คืนค่า Auto
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 3. ระบบพรางแสง (Lux) -->
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between min-h-[120px] hover:shadow-md transition-shadow">
+                            <div class="flex justify-between items-start">
+                                <span id="badge-mode-lux" class="px-3 py-1 text-[11px] text-white rounded-full bg-blue-500 font-semibold shadow-sm">Auto</span>
+                                <button id="btn-relay-lux" class="text-3xl text-red-500 transition-transform hover:scale-110" onclick="toggleRelay('relay_lux_req', 'btn-relay-lux', 'lux')">
+                                    <i class="fa-solid fa-power-off"></i>
+                                </button>
+                            </div>
+                            <div>
+                                <p class="font-bold text-gray-700 text-sm mt-3">ระบบพรางแสง</p>
+                                <button id="btn-auto-lux" class="text-xs text-gray-500 underline mt-1 text-left hidden hover:text-blue-600 transition-colors" onclick="setAutoMode('lux')">
+                                    <i class="fa-solid fa-rotate-left"></i> คืนค่า Auto
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 4. ความชื้นในดิน (Soil Moisture) -->
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between min-h-[120px] hover:shadow-md transition-shadow">
+                            <div class="flex justify-between items-start">
+                                <span id="badge-mode-soil" class="px-3 py-1 text-[11px] text-white rounded-full bg-blue-500 font-semibold shadow-sm">Auto</span>
+                                <button id="btn-relay-soil" class="text-3xl text-red-500 transition-transform hover:scale-110" onclick="toggleRelay('relay_soil_req', 'btn-relay-soil', 'soil')">
+                                    <i class="fa-solid fa-power-off"></i>
+                                </button>
+                            </div>
+                            <div>
+                                <p class="font-bold text-gray-700 text-sm mt-3">ความชื้นในดิน</p>
+                                <button id="btn-auto-soil" class="text-xs text-gray-500 underline mt-1 text-left hidden hover:text-blue-600 transition-colors" onclick="setAutoMode('soil')">
+                                    <i class="fa-solid fa-rotate-left"></i> คืนค่า Auto
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 5. ระบบการรดน้ำต้นไม้ (Irrigation System) -->
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between min-h-[120px] hover:shadow-md transition-shadow">
+                            <div class="flex justify-between items-start">
+                                <span id="badge-mode-water" class="px-3 py-1 text-[11px] text-white rounded-full bg-blue-500 font-semibold shadow-sm">Auto</span>
+                                <button id="btn-relay-water" class="text-3xl text-red-500 transition-transform hover:scale-110" onclick="toggleRelay('relay_water_req', 'btn-relay-water', 'water')">
+                                    <i class="fa-solid fa-power-off"></i>
+                                </button>
+                            </div>
+                            <div>
+                                <p class="font-bold text-gray-700 text-sm mt-3">ระบบการรดน้ำต้นไม้</p>
+                                <button id="btn-auto-water" class="text-xs text-gray-500 underline mt-1 text-left hidden hover:text-blue-600 transition-colors" onclick="setAutoMode('water')">
+                                    <i class="fa-solid fa-rotate-left"></i> คืนค่า Auto
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+            
+            <!-- ส่วนที่เพิ่มใหม่: Logic Setting & Historical Statistics -->
+            <section id="logic-statistics-cards">
+                <div class="bg-white p-6 rounded-2xl shadow-md border border-gray-200">
+                    <h2 class="text-xl font-semibold mb-5 text-gray-700 border-b pb-3">Logic Setting & Historical Statistics</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        
+                        <!-- ปุ่มตั้งค่า Logic -->
+                        <button id="btn-open-logic" class="bg-blue-100 hover:bg-blue-200 text-blue-800 p-6 rounded-xl shadow-sm flex flex-col items-center justify-center transition">
+                            <i class="fa-solid fa-sliders text-4xl mb-3 text-blue-500"></i>
+                            <span class="font-bold text-lg">ตั้งค่า Logic & Multi-Timer</span>
+                        </button>
+
+                     
+
+                        <!-- ปุ่มดูสถิติ -->
+                        <button id="btn-open-stats" class="bg-green-100 hover:bg-green-200 text-green-800 p-6 rounded-xl shadow-sm flex flex-col items-center justify-center transition">
+                            <i class="fa-solid fa-chart-line text-4xl mb-3 text-green-500"></i>
+                            <span class="font-bold text-lg">ดูสถิติย้อนหลัง Statistics</span>
+                        </button>
+
+
+                         
+
+                        
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- ================= ส่วนที่ 3: หน้า Logic Setting (ซ่อนโดยค่าเริ่มต้น) ================= -->
+    <div id="logic-setting-section" class="hidden">
+        <!-- Top Bar แบบ Sticky (แบ่ง 2 ส่วน) -->
+        <header class="sticky top-0 bg-white shadow-md z-50">
+            <!-- ส่วนที่ 1: ปุ่มนำทาง และ บันทึก -->
+            <div class="flex justify-between items-center p-4 border-b">
+                 <button id="btn-back-home" class="text-gray-600 hover:text-blue-600 font-semibold flex items-center">
+                    <i class="fa-solid fa-arrow-left mr-2"></i> Home
+                </button>
+                <h1 class="text-xl font-bold text-gray-800 hidden md:block">Logic & Multi-Timer Setting</h1>
+                <button id="btn-save-logic" class="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-lg font-semibold transition flex items-center">
+                    <i class="fa-solid fa-floppy-disk mr-2"></i> บันทึกทั้งหมด
+                </button>
+            </div>
+            <!-- ส่วนที่ 2: เวลาปัจจุบัน -->
+            <div class="text-center p-2 bg-gray-100">
+                <span class="text-sm font-semibold text-gray-600" id="current-rtc-time">เวลาปัจจุบัน: --:--:--</span>
+            </div>
+        </header>
+
+        <main class="max-w-5xl mx-auto p-4 space-y-8 mt-4">
+            
+            <!-- 1. การตั้งค่าระบบระบายอากาศ (Temperature) -->
+            <section class="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
+                <!-- Top Bar สีน้ำเงิน -->
+                <div class="bg-blue-600 text-white p-4 flex justify-between items-center">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-temperature-half text-2xl"></i>
+                        <span class="font-bold text-lg">Temperature</span>
+                        <div id="status-dot-temp" class="w-3 h-3 bg-gray-400 rounded-full ml-2"></div>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="mr-2 font-semibold">Enable</span>
+                        <!-- Toggle Switch -->
+                        <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                            <input type="checkbox" id="toggle-enable-temp" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer" checked/>
+                            <label for="toggle-enable-temp" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ส่วน Dashboard แบ่ง 5 ส่วน -->
+                <div id="dashboard-temp" class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    <!-- ส่วนที่ 1 & 2: โหมดการทำงาน และ Manual Overwrite -->
+                    <div class="space-y-4 col-span-1">
+                        <!-- ส่วนที่ 1 -->
+                        <div class="border p-4 rounded-xl">
+                            <h3 class="font-bold text-gray-700 mb-3 border-b pb-2">1. โหมดการทำงาน (Control Mode)</h3>
+                            <div class="space-y-2">
+                                <label class="flex items-center"><input type="radio" name="mode-temp" value="sensor" class="mr-2" checked> SENSOR ONLY</label>
+                                <label class="flex items-center"><input type="radio" name="mode-temp" value="time" class="mr-2"> TIME ONLY</label>
+                                <label class="flex items-center"><input type="radio" name="mode-temp" value="sensor_and_time" class="mr-2"> SENSOR ONLY AND TIME ONLY</label>
+                                <label class="flex items-center"><input type="radio" name="mode-temp" value="sensor_or_time" class="mr-2"> SENSOR ONLY OR TIME ONLY</label>
+                                <label class="flex items-center text-orange-600 font-semibold"><input type="radio" name="mode-temp" value="manual" class="mr-2"> MANUAL ONLY</label>
+                            </div>
+                        </div>
+                        
+                        <!-- ส่วนที่ 2 -->
+                        <div class="border p-4 rounded-xl">
+                            <h3 class="font-bold text-gray-700 mb-3 border-b pb-2">2. การตั้งค่า CHECK BOX</h3>
+                            <label for="check-manual-overwrite-temp" class="flex items-center text-sm cursor-pointer">
+                                <input type="checkbox" id="check-manual-overwrite-temp" class="mr-2">
+                                อนุญาต Manual Overwrite (ยกเว้นโหมด MANUAL ONLY)
+                            </label>
+                            <p class="text-xs text-gray-500 mt-2">* เมื่อกดปุ่มสั่งงานที่หน้าหลัก ระบบจะทับซ้อน (Overwrite) คำสั่งอัตโนมัติทันที</p>
+                        </div>
+                    </div>
+
+                    <!-- ส่วนที่ 3 & 5: เกณฑ์เซนเซอร์ และ สถานะปัจจุบัน -->
+                    <div class="space-y-4 col-span-1">
+                        <!-- ส่วนที่ 3 -->
+                        <div class="border p-4 rounded-xl">
+                            <h3 class="font-bold text-gray-700 mb-3 border-b pb-2">3. การตั้งค่า เกณฑ์เซนเซอร์ (°C)</h3>
+                            <div class="grid grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-600">Start (เริ่มต้น):</label>
+                                    <input type="number" id="sensor-start-temp" class="w-full border rounded p-2" value="32.0" step="0.1">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-600">Stop (สิ้นสุด):</label>
+                                    <input type="number" id="sensor-stop-temp" class="w-full border rounded p-2" value="29.0" step="0.1">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-600 mb-2">เงื่อนไขการทำงาน:</label>
+                                <label class="flex items-center text-sm"><input type="radio" name="condition-temp" value="gte" class="mr-2" checked> ทำงานเมื่อค่า >= Start</label>
+                                <label class="flex items-center text-sm"><input type="radio" name="condition-temp" value="lte" class="mr-2"> ทำงานเมื่อค่า <= Start</label>
+                            </div>
+                        </div>
+
+                        <!-- ส่วนที่ 5 -->
+                        <div class="border p-4 rounded-xl bg-gray-50 flex justify-between items-center">
+                            <h3 class="font-bold text-gray-700">5. สถานะปัจจุบัน (Temperature Relay)</h3>
+                            <span id="current-relay-status-temp" class="px-3 py-1 rounded-full text-white font-bold bg-red-500 text-sm">OFF</span>
+                        </div>
+                    </div>
+
+                    <!-- ส่วนที่ 4: Multi-Timer -->
+                    <div class="border p-4 rounded-xl col-span-1 md:col-span-2">
+                        <div class="flex justify-between items-center mb-3 border-b pb-2">
+                            <h3 class="font-bold text-gray-700">4. การตั้งค่าเวลา แบบ (Multi-Timer)</h3>
+                            <button class="bg-blue-100 text-blue-600 px-3 py-1 rounded hover:bg-blue-200 text-sm flex items-center" onclick="addTimerRow('timer-container-temp')">
+                                <i class="fa-solid fa-plus mr-1"></i> เพิ่มชุดเวลา
+                            </button>
+                        </div>
+                        <div id="timer-container-temp" class="space-y-3">
+                            <!-- ชุดเวลาจะถูกสร้างที่นี่ -->
+                        </div>
+                    </div>
+                    
+                </div>
+            </section>
+
+             <!-- 2. การตั้งค่าระบบความชื้นอากาศ (Humidity) -->
+             <section class="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
+                <div class="bg-cyan-500 text-white p-4 flex justify-between items-center">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-droplet text-2xl"></i>
+                        <span class="font-bold text-lg">Humidity</span>
+                        <div id="status-dot-hum" class="w-3 h-3 bg-gray-400 rounded-full ml-2"></div>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="mr-2 font-semibold">Enable</span>
+                        <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                            <input type="checkbox" id="toggle-enable-hum" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer" checked/>
+                            <label for="toggle-enable-hum" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="dashboard-hum" class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4 col-span-1">
+                        <div class="border p-4 rounded-xl">
+                            <h3 class="font-bold text-gray-700 mb-3 border-b pb-2">1. โหมดการทำงาน</h3>
+                            <div class="space-y-2">
+                                <label class="flex items-center"><input type="radio" name="mode-hum" value="sensor" class="mr-2" checked> SENSOR ONLY</label>
+                                <label class="flex items-center"><input type="radio" name="mode-hum" value="time" class="mr-2"> TIME ONLY</label>
+                                <label class="flex items-center"><input type="radio" name="mode-hum" value="sensor_and_time" class="mr-2"> SENSOR ONLY AND TIME ONLY</label>
+                                <label class="flex items-center"><input type="radio" name="mode-hum" value="sensor_or_time" class="mr-2"> SENSOR ONLY OR TIME ONLY</label>
+                                <label class="flex items-center text-orange-600 font-semibold"><input type="radio" name="mode-hum" value="manual" class="mr-2"> MANUAL ONLY</label>
+                            </div>
+                        </div>
+                        <div class="border p-4 rounded-xl">
+                            <h3 class="font-bold text-gray-700 mb-3 border-b pb-2">2. การตั้งค่า CHECK BOX</h3>
+                            <label for="check-manual-overwrite-hum" class="flex items-center text-sm cursor-pointer">
+                                <input type="checkbox" id="check-manual-overwrite-hum" class="mr-2"> 
+                                อนุญาต Manual Overwrite (ยกเว้นโหมด MANUAL ONLY)
+                            </label>
+                             <p class="text-xs text-gray-500 mt-2">* เมื่อกดปุ่มสั่งงานที่หน้าหลัก ระบบจะทับซ้อน (Overwrite) คำสั่งอัตโนมัติทันที</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4 col-span-1">
+                        <div class="border p-4 rounded-xl">
+                            <h3 class="font-bold text-gray-700 mb-3 border-b pb-2">3. การตั้งค่า เกณฑ์เซนเซอร์ (%)</h3>
+                            <div class="grid grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-600">Start (เริ่มต้น):</label>
+                                    <input type="number" id="sensor-start-hum" class="w-full border rounded p-2" value="40" step="1">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-600">Stop (สิ้นสุด):</label>
+                                    <input type="number" id="sensor-stop-hum" class="w-full border rounded p-2" value="60" step="1">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-600 mb-2">เงื่อนไขการทำงาน:</label>
+                                <label class="flex items-center text-sm"><input type="radio" name="condition-hum" value="gte" class="mr-2"> ทำงานเมื่อค่า >= Start</label>
+                                <label class="flex items-center text-sm"><input type="radio" name="condition-hum" value="lte" class="mr-2" checked> ทำงานเมื่อค่า <= Start</label>
+                            </div>
+                        </div>
+                        <div class="border p-4 rounded-xl bg-gray-50 flex justify-between items-center">
+                            <h3 class="font-bold text-gray-700">5. สถานะปัจจุบัน</h3>
+                            <span id="current-relay-status-hum" class="px-3 py-1 rounded-full text-white font-bold bg-red-500 text-sm">OFF</span>
+                        </div>
+                    </div>
+
+                    <div class="border p-4 rounded-xl col-span-1 md:col-span-2">
+                        <div class="flex justify-between items-center mb-3 border-b pb-2">
+                            <h3 class="font-bold text-gray-700">4. การตั้งค่าเวลา แบบ (Multi-Timer)</h3>
+                            <button class="bg-blue-100 text-blue-600 px-3 py-1 rounded hover:bg-blue-200 text-sm flex items-center" onclick="addTimerRow('timer-container-hum')">
+                                <i class="fa-solid fa-plus mr-1"></i> เพิ่มชุดเวลา
+                            </button>
+                        </div>
+                        <div id="timer-container-hum" class="space-y-3"></div>
+                    </div>
+                </div>
+            </section>
+
+             <!-- 3. การตั้งค่าระบบพรางแสง (Lux) -->
+             <section class="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
+                <div class="bg-yellow-400 text-white p-4 flex justify-between items-center">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-sun text-2xl"></i>
+                        <span class="font-bold text-lg">Lux</span>
+                        <div id="status-dot-lux" class="w-3 h-3 bg-gray-400 rounded-full ml-2"></div>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="mr-2 font-semibold">Enable</span>
+                        <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                            <input type="checkbox" id="toggle-enable-lux" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer" checked/>
+                            <label for="toggle-enable-lux" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="dashboard-lux" class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4 col-span-1">
+                        <div class="border p-4 rounded-xl">
+                            <h3 class="font-bold text-gray-700 mb-3 border-b pb-2">1. โหมดการทำงาน</h3>
+                            <div class="space-y-2">
+                                <label class="flex items-center"><input type="radio" name="mode-lux" value="sensor" class="mr-2" checked> SENSOR ONLY</label>
+                                <label class="flex items-center"><input type="radio" name="mode-lux" value="time" class="mr-2"> TIME ONLY</label>
+                                <label class="flex items-center"><input type="radio" name="mode-lux" value="sensor_and_time" class="mr-2"> SENSOR ONLY AND TIME ONLY</label>
+                                <label class="flex items-center"><input type="radio" name="mode-lux" value="sensor_or_time" class="mr-2"> SENSOR ONLY OR TIME ONLY</label>
+                                <label class="flex items-center text-orange-600 font-semibold"><input type="radio" name="mode-lux" value="manual" class="mr-2"> MANUAL ONLY</label>
+                            </div>
+                        </div>
+                        <div class="border p-4 rounded-xl">
+                            <h3 class="font-bold text-gray-700 mb-3 border-b pb-2">2. การตั้งค่า CHECK BOX</h3>
+                            <label for="check-manual-overwrite-lux" class="flex items-center text-sm cursor-pointer">
+                                <input type="checkbox" id="check-manual-overwrite-lux" class="mr-2"> 
+                                อนุญาต Manual Overwrite (ยกเว้นโหมด MANUAL ONLY)
+                            </label>
+                             <p class="text-xs text-gray-500 mt-2">* เมื่อกดปุ่มสั่งงานที่หน้าหลัก ระบบจะทับซ้อน (Overwrite) คำสั่งอัตโนมัติทันที</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4 col-span-1">
+                        <div class="border p-4 rounded-xl">
+                            <h3 class="font-bold text-gray-700 mb-3 border-b pb-2">3. การตั้งค่า เกณฑ์เซนเซอร์ (lx)</h3>
+                            <div class="grid grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-600">Start (เริ่มต้น):</label>
+                                    <input type="number" id="sensor-start-lux" class="w-full border rounded p-2" value="50000" step="100">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-600">Stop (สิ้นสุด):</label>
+                                    <input type="number" id="sensor-stop-lux" class="w-full border rounded p-2" value="30000" step="100">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-600 mb-2">เงื่อนไขการทำงาน:</label>
+                                <label class="flex items-center text-sm"><input type="radio" name="condition-lux" value="gte" class="mr-2" checked> ทำงานเมื่อค่า >= Start</label>
+                                <label class="flex items-center text-sm"><input type="radio" name="condition-lux" value="lte" class="mr-2"> ทำงานเมื่อค่า <= Start</label>
+                            </div>
+                        </div>
+                        <div class="border p-4 rounded-xl bg-gray-50 flex justify-between items-center">
+                            <h3 class="font-bold text-gray-700">5. สถานะปัจจุบัน</h3>
+                            <span id="current-relay-status-lux" class="px-3 py-1 rounded-full text-white font-bold bg-red-500 text-sm">OFF</span>
+                        </div>
+                    </div>
+
+                    <div class="border p-4 rounded-xl col-span-1 md:col-span-2">
+                        <div class="flex justify-between items-center mb-3 border-b pb-2">
+                            <h3 class="font-bold text-gray-700">4. การตั้งค่าเวลา แบบ (Multi-Timer)</h3>
+                            <button class="bg-blue-100 text-blue-600 px-3 py-1 rounded hover:bg-blue-200 text-sm flex items-center" onclick="addTimerRow('timer-container-lux')">
+                                <i class="fa-solid fa-plus mr-1"></i> เพิ่มชุดเวลา
+                            </button>
+                        </div>
+                        <div id="timer-container-lux" class="space-y-3"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. การตั้งค่าระบบความชื้นดิน (Soil Moisture) -->
+            <section class="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
+                <div class="bg-green-600 text-white p-4 flex justify-between items-center">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-seedling text-2xl"></i>
+                        <span class="font-bold text-lg">Soil Moisture</span>
+                        <div id="status-dot-soil" class="w-3 h-3 bg-gray-400 rounded-full ml-2"></div>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="mr-2 font-semibold">Enable</span>
+                        <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                            <input type="checkbox" id="toggle-enable-soil" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer" checked/>
+                            <label for="toggle-enable-soil" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="dashboard-soil" class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4 col-span-1">
+                        <div class="border p-4 rounded-xl">
+                            <h3 class="font-bold text-gray-700 mb-3 border-b pb-2">1. โหมดการทำงาน</h3>
+                            <div class="space-y-2">
+                                <label class="flex items-center"><input type="radio" name="mode-soil" value="sensor" class="mr-2" checked> SENSOR ONLY</label>
+                                <label class="flex items-center"><input type="radio" name="mode-soil" value="time" class="mr-2"> TIME ONLY</label>
+                                <label class="flex items-center"><input type="radio" name="mode-soil" value="sensor_and_time" class="mr-2"> SENSOR ONLY AND TIME ONLY</label>
+                                <label class="flex items-center"><input type="radio" name="mode-soil" value="sensor_or_time" class="mr-2"> SENSOR ONLY OR TIME ONLY</label>
+                                <label class="flex items-center text-orange-600 font-semibold"><input type="radio" name="mode-soil" value="manual" class="mr-2"> MANUAL ONLY</label>
+                            </div>
+                        </div>
+                        <div class="border p-4 rounded-xl">
+                            <h3 class="font-bold text-gray-700 mb-3 border-b pb-2">2. การตั้งค่า CHECK BOX</h3>
+                            <label for="check-manual-overwrite-soil" class="flex items-center text-sm cursor-pointer">
+                                <input type="checkbox" id="check-manual-overwrite-soil" class="mr-2"> 
+                                อนุญาต Manual Overwrite (ยกเว้นโหมด MANUAL ONLY)
+                            </label>
+                             <p class="text-xs text-gray-500 mt-2">* เมื่อกดปุ่มสั่งงานที่หน้าหลัก ระบบจะทับซ้อน (Overwrite) คำสั่งอัตโนมัติทันที</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4 col-span-1">
+                        <div class="border p-4 rounded-xl">
+                            <h3 class="font-bold text-gray-700 mb-3 border-b pb-2">3. การตั้งค่า เกณฑ์เซนเซอร์ (%)</h3>
+                            <div class="grid grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-600">Start (เริ่มต้น):</label>
+                                    <input type="number" id="sensor-start-soil" class="w-full border rounded p-2" value="30" step="1">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-600">Stop (สิ้นสุด):</label>
+                                    <input type="number" id="sensor-stop-soil" class="w-full border rounded p-2" value="60" step="1">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-600 mb-2">เงื่อนไขการทำงาน:</label>
+                                <label class="flex items-center text-sm"><input type="radio" name="condition-soil" value="gte" class="mr-2"> ทำงานเมื่อค่า >= Start</label>
+                                <label class="flex items-center text-sm"><input type="radio" name="condition-soil" value="lte" class="mr-2" checked> ทำงานเมื่อค่า <= Start</label>
+                            </div>
+                        </div>
+                        <div class="border p-4 rounded-xl bg-gray-50 flex justify-between items-center">
+                            <h3 class="font-bold text-gray-700">5. สถานะปัจจุบัน</h3>
+                            <span id="current-relay-status-soil" class="px-3 py-1 rounded-full text-white font-bold bg-red-500 text-sm">OFF</span>
+                        </div>
+                    </div>
+
+                    <div class="border p-4 rounded-xl col-span-1 md:col-span-2">
+                        <div class="flex justify-between items-center mb-3 border-b pb-2">
+                            <h3 class="font-bold text-gray-700">4. การตั้งค่าเวลา แบบ (Multi-Timer)</h3>
+                            <button class="bg-blue-100 text-blue-600 px-3 py-1 rounded hover:bg-blue-200 text-sm flex items-center" onclick="addTimerRow('timer-container-soil')">
+                                <i class="fa-solid fa-plus mr-1"></i> เพิ่มชุดเวลา
+                            </button>
+                        </div>
+                        <div id="timer-container-soil" class="space-y-3"></div>
+                    </div>
+                </div>
+            </section>
+
+             <!-- 5. การตั้งค่าระบบการรดน้ำต้นไม้ (Irrigation System) -->
+             <section class="bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden">
+                <div class="bg-indigo-500 text-white p-4 flex justify-between items-center">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-faucet-drip text-2xl"></i>
+                        <span class="font-bold text-lg">Irrigation System</span>
+                        <div id="status-dot-water" class="w-3 h-3 bg-gray-400 rounded-full ml-2"></div>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="mr-2 font-semibold">Enable</span>
+                        <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                            <input type="checkbox" id="toggle-enable-water" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer" checked/>
+                            <label for="toggle-enable-water" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="dashboard-water" class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4 col-span-1">
+                        <div class="border p-4 rounded-xl">
+                            <h3 class="font-bold text-gray-700 mb-3 border-b pb-2">1. โหมดการทำงาน</h3>
+                            <div class="space-y-2">
+                                <!-- ไม่มีโหมดเซนเซอร์ สำหรับ Irrigation -->
+                                <label class="flex items-center"><input type="radio" name="mode-water" value="time" class="mr-2" checked> TIME ONLY</label>
+                                <label class="flex items-center text-orange-600 font-semibold"><input type="radio" name="mode-water" value="manual" class="mr-2"> MANUAL ONLY</label>
+                            </div>
+                        </div>
+                        <div class="border p-4 rounded-xl">
+                            <h3 class="font-bold text-gray-700 mb-3 border-b pb-2">2. การตั้งค่า CHECK BOX</h3>
+                            <label for="check-manual-overwrite-water" class="flex items-center text-sm cursor-pointer">
+                                <input type="checkbox" id="check-manual-overwrite-water" class="mr-2"> 
+                                อนุญาต Manual Overwrite (ยกเว้นโหมด MANUAL ONLY)
+                            </label>
+                             <p class="text-xs text-gray-500 mt-2">* เมื่อกดปุ่มสั่งงานที่หน้าหลัก ระบบจะทับซ้อน (Overwrite) คำสั่งอัตโนมัติทันที</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4 col-span-1">
+                        <!-- ไม่มีตั้งค่าเกณฑ์เซนเซอร์ -->
+                        <div class="border p-4 rounded-xl bg-gray-50 flex justify-between items-center mt-[100px]">
+                            <h3 class="font-bold text-gray-700">4. สถานะปัจจุบัน</h3>
+                            <span id="current-relay-status-water" class="px-3 py-1 rounded-full text-white font-bold bg-red-500 text-sm">OFF</span>
+                        </div>
+                    </div>
+
+                    <div class="border p-4 rounded-xl col-span-1 md:col-span-2">
+                        <div class="flex justify-between items-center mb-3 border-b pb-2">
+                            <h3 class="font-bold text-gray-700">3. การตั้งค่าเวลา แบบ (Multi-Timer)</h3>
+                            <button class="bg-blue-100 text-blue-600 px-3 py-1 rounded hover:bg-blue-200 text-sm flex items-center" onclick="addTimerRow('timer-container-water')">
+                                <i class="fa-solid fa-plus mr-1"></i> เพิ่มชุดเวลา
+                            </button>
+                        </div>
+                        <div id="timer-container-water" class="space-y-3"></div>
+                    </div>
+                </div>
+            </section>
+            
+        </main>
+    </div>
+
+    <!-- Template สำหรับเพิ่มชุดเวลา (ถูกซ่อนไว้) -->
+    <template id="timer-row-template">
+        <div class="flex flex-wrap items-end gap-3 bg-gray-50 p-3 rounded-lg border timer-row">
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 mb-1">เวลาเปิด (ON)</label>
+                <!-- ใช้ input type="time" ซึ่งเป็น UI พื้นฐานที่มี Scroll Wheel Time Picker บนมือถือ -->
+                <input type="time" class="border rounded p-2 timer-on" required>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 mb-1">เวลาปิด (OFF)</label>
+                <input type="time" class="border rounded p-2 timer-off" required>
+            </div>
+            <button class="bg-red-100 text-red-500 px-3 py-2 rounded hover:bg-red-200 ml-auto" onclick="removeTimerRow(this)">
+                <i class="fa-solid fa-trash-can"></i> ลบ
+            </button>
+        </div>
+    </template>
+
+    <!-- ================= ส่วนที่ 4: Bottom Sheet สำหรับ Historical Statistics ================= -->
+    <div id="stats-backdrop" class="fixed inset-0 bg-gray-900 bg-opacity-50 z-[60] hidden opacity-0 transition-opacity duration-300 cursor-pointer backdrop-blur-sm"></div>
+
+    <div id="stats-bottom-sheet" class="fixed bottom-0 left-0 right-0 z-[70] bg-gray-50 rounded-t-[2rem] shadow-[0_-10px_40px_rgba(0,0,0,0.2)] h-[95vh] overflow-hidden transform translate-y-full transition-transform duration-300 ease-out hidden">
+        <!-- แถบจับ (Handle Bar) และปุ่มปิด -->
+        <div class="sticky top-0 w-full flex items-center justify-between px-6 pt-4 pb-3 bg-gray-50 z-20 border-b border-gray-200">
+            <div class="w-12 h-1.5 bg-gray-300 rounded-full mx-auto cursor-pointer" id="stats-sheet-handle"></div>
+            <button id="btn-close-stats" class="absolute right-6 text-gray-500 hover:text-gray-700 text-xl font-bold p-2">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- โหลดหน้ากราฟผ่าน iframe -->
+        <div class="w-full h-[calc(95vh-3.5rem)] overflow-y-auto bg-gray-100">
+            <iframe src="chart copy.html" class="w-full h-full border-none"></iframe>
+        </div>
+    </div>
+
+    <!-- สคริปต์สำหรับข้ามหน้า Login อัตโนมัติและสั่งการระบบเริ่มทำงาน -->
+    <script>
+        window.addEventListener('DOMContentLoaded', (event) => {
+            setTimeout(() => {
+                const loginBtn = document.getElementById('login-btn');
+                if(loginBtn) loginBtn.click();
+            }, 100);
+        });
+    </script>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>

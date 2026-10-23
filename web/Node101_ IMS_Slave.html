@@ -58,16 +58,8 @@
     .account-control:not([hidden]) { flex-basis: 100%; justify-content: flex-end; }
     .account-email { max-width: 170px; overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
     .account-control[hidden] { display: none; }
-    .auth-gate { min-height: calc(100svh - 68px); display: grid; place-items: center; padding: 24px 16px calc(30px + env(safe-area-inset-bottom)); }
-    .auth-gate[hidden] { display: none; }
-    .auth-card { width: min(100%, 410px); padding: 22px; border: 1px solid var(--line); border-radius: 22px; background: var(--surface); box-shadow: var(--shadow); }
-    .auth-card h2 { font-size: 21px; }
-    .auth-card > p { margin: 8px 0 18px; color: var(--muted); font-size: 12px; line-height: 1.55; }
-    .auth-card .field label { font-size: 11px; }
-    .auth-card .field input { min-height: 46px; font-size: 14px; }
-    .auth-error { min-height: 18px; margin: 0 0 10px; color: var(--red); font-size: 11px; line-height: 1.5; }
-    .auth-submit { width: 100%; min-height: 46px; font-size: 13px; }
-    .auth-submit:disabled { cursor: wait; }
+    .home-link { text-decoration: none; }
+    .home-link svg { flex: 0 0 auto; }
     main { width: min(1180px,100%); margin: 0 auto; padding: 20px 15px calc(30px + env(safe-area-inset-bottom)); }
     main[hidden] { display: none; }
     .page-intro { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 10px; margin: 3px 2px 15px; }
@@ -194,26 +186,14 @@
     </div>
     <div id="account-control" class="account-control" hidden>
       <span id="account-email" class="account-email"></span>
-      <button id="sign-out" class="button soft small" type="button">ออกจากระบบ</button>
+      <a id="home-link" class="button soft small home-link" href="Node100_ IMS_Master.html" target="_top" aria-label="กลับหน้า Home" title="กลับหน้า Home">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="m3.5 10.5 8.5-7 8.5 7v9a1 1 0 0 1-1 1h-5.25v-6.25h-4.5V20.5H4.5a1 1 0 0 1-1-1v-9Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Home</span>
+      </a>
     </div>
   </header>
-
-  <section id="auth-gate" class="auth-gate" aria-labelledby="auth-title">
-    <form id="sign-in-form" class="auth-card">
-      <h2 id="auth-title">เข้าสู่ระบบ</h2>
-      <p>ลงชื่อเข้าใช้ด้วยบัญชีที่ได้รับอนุญาต เพื่อเชื่อมต่อข้อมูลและควบคุมระบบชลประทาน</p>
-      <div class="field">
-        <label for="auth-email">อีเมล</label>
-        <input id="auth-email" name="email" type="email" autocomplete="username" required>
-      </div>
-      <div class="field">
-        <label for="auth-password">รหัสผ่าน</label>
-        <input id="auth-password" name="password" type="password" autocomplete="current-password" required>
-      </div>
-      <p id="auth-error" class="auth-error" role="alert" aria-live="polite"></p>
-      <button id="sign-in" class="button green auth-submit" type="submit">เข้าสู่ระบบ</button>
-    </form>
-  </section>
 
   <main id="main" hidden>
     <div class="page-intro">
@@ -823,31 +803,20 @@
           },(error) => { console.error("History read failed.",error); toast("อ่านสถิติไม่ได้ ตรวจสอบ Firebase Rules"); });
         } catch (error) { console.error("Firebase initialization failed.",error); setCloud(false); }
       }
-      function showAuthError(error) {
-        const messages = {
-          "auth/invalid-email": "รูปแบบอีเมลไม่ถูกต้อง",
-          "auth/user-disabled": "บัญชีนี้ถูกปิดใช้งาน",
-          "auth/user-not-found": "ไม่พบบัญชีนี้",
-          "auth/wrong-password": "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
-          "auth/invalid-credential": "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
-          "auth/too-many-requests": "พยายามเข้าสู่ระบบหลายครั้งเกินไป กรุณารอสักครู่",
-          "auth/network-request-failed": "เชื่อมต่อ Firebase ไม่สำเร็จ ตรวจสอบอินเทอร์เน็ต"
-        };
-        $("auth-error").textContent = messages[error.code] || "เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบบัญชีและการตั้งค่า Firebase Authentication";
-        console.error("Firebase sign-in failed.", error);
-      }
       function connectFirebase() {
         if (!window.firebase || !firebase.auth || !firebase.database) {
           setCloud(false);
-          $("auth-error").textContent = "Firebase SDK โหลดไม่สำเร็จ กรุณาเปิดหน้าเว็บผ่าน Firebase Hosting";
+          window.top.location.replace("index.html");
           return;
         }
         try {
           if (firebase.apps.length === 0) firebase.initializeApp(firebaseConfig);
           state.auth = firebase.auth();
           state.auth.onAuthStateChanged((user) => {
-            $("auth-error").textContent = "";
-            $("auth-gate").hidden = Boolean(user);
+            if (!user) {
+              window.top.location.replace("index.html");
+              return;
+            }
             $("main").hidden = !user;
             $("account-control").hidden = !user;
             $("account-email").textContent = user ? user.email || "บัญชี Firebase" : "";
@@ -874,12 +843,12 @@
             }
           }, (error) => {
             console.error("Firebase authentication state listener failed.", error);
-            $("auth-error").textContent = "ตรวจสอบสถานะการเข้าสู่ระบบไม่สำเร็จ";
+            window.top.location.replace("index.html");
           });
         } catch (error) {
           console.error("Firebase initialization failed.", error);
           setCloud(false);
-          $("auth-error").textContent = "เริ่มต้น Firebase ไม่สำเร็จ กรุณาตรวจสอบการตั้งค่าโปรเจกต์";
+          window.top.location.replace("index.html");
         }
       }
       $("flow-grid").replaceChildren();
@@ -895,25 +864,6 @@
       $("chart-count").addEventListener("change",()=>renderHistory(state.history));
       $("export-csv").addEventListener("click",exportCsv);
       $("clear-history").addEventListener("click",clearHistory);
-      $("sign-in-form").addEventListener("submit",async(event)=>{
-        event.preventDefault();
-        $("auth-error").textContent = "";
-        $("sign-in").disabled = true;
-        try {
-          await state.auth.signInWithEmailAndPassword($("auth-email").value.trim(),$("auth-password").value);
-        } catch (error) {
-          showAuthError(error);
-        } finally {
-          $("sign-in").disabled = false;
-        }
-      });
-      $("sign-out").addEventListener("click",async()=>{
-        try {
-          await state.auth.signOut();
-          window.location.replace("index.html");
-        }
-        catch (error) { console.error("Firebase sign-out failed.",error); toast("ออกจากระบบไม่สำเร็จ"); }
-      });
       window.addEventListener("resize",()=>renderCharts(state.history.slice(-Number($("chart-count").value))));
       setInterval(()=>{ if(state.lastBoardHeartbeatMs!==null && Date.now()+state.serverTimeOffset-state.lastBoardHeartbeatMs>=20000) setBoard(false); },1000);
       connectFirebase();

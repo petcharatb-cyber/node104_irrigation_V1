@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f5f8f7">
+  <meta name="description" content="Node100 Irrigation Management System dashboard">
+  <title>Node100 | Irrigation Management System</title>
+  <script defer src="/__/firebase/13.1.0/firebase-app-compat.js"></script>
+  <script defer src="/__/firebase/13.1.0/firebase-auth-compat.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f5f8f7;
+      --surface: rgba(255, 255, 255, .94);
+      --ink: #182a26;
+      --muted: #73817d;
+      --line: #e7eeeb;
+      --green: #147d62;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      margin: 0;
+      background: var(--page);
+      color: var(--ink);
+    }
+
+    .topbar {
+      position: sticky;
+      z-index: 1;
+      top: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: calc(12px + env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) 14px max(18px, env(safe-area-inset-left));
+      border-bottom: 1px solid rgba(222, 233, 228, .9);
+      background: var(--surface);
+      -webkit-backdrop-filter: blur(18px);
+      backdrop-filter: blur(18px);
+    }
+
+    .brand { min-width: 0; }
+
+    .brand-title {
+      margin: 0;
+      font-size: clamp(17px, 4.4vw, 22px);
+      font-weight: 750;
+      letter-spacing: -.045em;
+      line-height: 1.15;
+    }
+
+    .brand-subtitle {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .time-dot {
+      flex: 0 0 auto;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #b2beb9;
+    }
+
+    .time-dot.online {
+      background: #28a477;
+      box-shadow: 0 0 0 3px rgba(40, 164, 119, .12);
+    }
+
+    .icon-button {
+      display: inline-grid;
+      flex: 0 0 auto;
+      width: 46px;
+      height: 46px;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #fff;
+      color: #41534d;
+      box-shadow: 0 3px 10px rgba(31, 65, 54, .04);
+      cursor: pointer;
+      transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .icon-button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 34px rgba(31, 65, 54, .08);
+    }
+
+    .icon-button:active {
+      transform: scale(.96);
+      background: #e8f5ef;
+    }
+
+    .icon-button:focus-visible {
+      outline: 3px solid rgba(20, 125, 98, .3);
+      outline-offset: 2px;
+    }
+
+    .dashboard {
+      min-height: calc(100vh - 76px);
+      min-height: calc(100svh - 76px);
+      padding: 28px max(18px, env(safe-area-inset-right)) calc(28px + env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+    }
+
+    .page-content {
+      width: min(100%, 760px);
+      margin: 0 auto;
+    }
+
+    .section-heading {
+      margin: 0 0 16px;
+      font-size: 18px;
+      font-weight: 750;
+      letter-spacing: -.025em;
+    }
+
+    .module-card {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      min-height: 120px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: var(--surface);
+      color: inherit;
+      text-decoration: none;
+      box-shadow: 0 10px 30px rgba(31, 65, 54, .055);
+      transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .module-card:hover {
+      transform: translateY(-2px);
+      border-color: #c8e3d8;
+      box-shadow: 0 16px 38px rgba(31, 65, 54, .1);
+    }
+
+    .module-card:active { transform: scale(.99); }
+
+    .module-card:focus-visible {
+      outline: 3px solid rgba(20, 125, 98, .3);
+      outline-offset: 3px;
+    }
+
+    .module-icon {
+      display: grid;
+      flex: 0 0 54px;
+      width: 54px;
+      height: 54px;
+      place-items: center;
+      border-radius: 18px;
+      background: #e8f5ef;
+      color: var(--green);
+    }
+
+    .module-copy { min-width: 0; flex: 1; }
+
+    .module-title {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 750;
+      letter-spacing: -.025em;
+    }
+
+    .module-description {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .module-arrow {
+      flex: 0 0 auto;
+      color: #82928b;
+    }
+
+    .dashboard-sheet {
+      position: fixed;
+      inset: auto 0 0;
+      display: flex;
+      flex-direction: column;
+      width: min(100%, 1180px);
+      height: min(92vh, 940px);
+      height: min(92svh, 940px);
+      max-width: 100%;
+      max-height: 92vh;
+      max-height: 92svh;
+      margin: auto auto 0;
+      padding: 14px max(14px, env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+      border: 1px solid var(--line);
+      border-bottom: 0;
+      border-radius: 22px 22px 0 0;
+      background: var(--page);
+      color: var(--ink);
+      box-shadow: 0 -16px 50px rgba(31, 65, 54, .16);
+    }
+
+    .dashboard-sheet::backdrop { background: rgba(17, 35, 29, .42); }
+    .sheet-header { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 12px; padding: 0 2px 12px; }
+    .sheet-heading { min-width: 0; }
+    .sheet-handle { width: 38px; height: 4px; margin-bottom: 9px; border-radius: 99px; background: #d9e3de; }
+    .sheet-title { margin: 0; font-size: 15px; font-weight: 750; }
+    .sheet-close {
+      display: grid;
+      flex: 0 0 auto;
+      width: 38px;
+      height: 38px;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      color: #41534d;
+      font: inherit;
+      font-size: 22px;
+      cursor: pointer;
+    }
+    .dashboard-frame { width: 100%; min-height: 0; flex: 1 1 auto; border: 1px solid var(--line); border-radius: 16px 16px 0 0; background: var(--surface); }
+
+    @media (min-width: 600px) {
+      .topbar { padding-right: 28px; padding-left: 28px; }
+      .dashboard { padding-right: 28px; padding-left: 28px; }
+    }
+
+    @media (min-width: 900px) {
+      .topbar { padding-right: 42px; padding-left: 42px; }
+      .dashboard { padding-top: 40px; padding-right: 42px; padding-left: 42px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .01ms !important;
+        transition-duration: .01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1 class="brand-title">Irrigation Management System</h1>
+      <p class="brand-subtitle">
+        <span id="time-dot" class="time-dot" aria-hidden="true"></span>
+        <time id="clock" aria-live="off">กำลังซิงก์เวลาออนไลน์…</time>
+      </p>
+    </div>
+    <button class="icon-button" type="button" aria-label="Settings" title="Settings">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 8.25a3.75 3.75 0 1 0 0 7.5 3.75 3.75 0 0 0 0-7.5Z" stroke="currentColor" stroke-width="1.7"/>
+        <path d="m19.4 13.5 1.1.85-1.1 1.9-1.3-.48a7.7 7.7 0 0 1-1.65.96l-.2 1.38h-2.2l-.2-1.38a7.7 7.7 0 0 1-1.7-.96l-1.28.48-1.1-1.9 1.1-.85a7.2 7.2 0 0 1 0-1.95l-1.1-.85 1.1-1.9 1.28.48a7.7 7.7 0 0 1 1.7-.96l.2-1.38h2.2l.2 1.38a7.7 7.7 0 0 1 1.65.96l1.3-.48 1.1 1.9-1.1.85a7.2 7.2 0 0 1 0 1.95Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" transform="translate(-2.1 -1.1)"/>
+      </svg>
+    </button>
+  </header>
+
+  <main id="dashboard" class="dashboard" aria-label="Dashboard" hidden>
+    <section class="page-content" aria-labelledby="modules-heading">
+      <h2 id="modules-heading" class="section-heading">ระบบจัดการน้ำ</h2>
+      <a class="module-card" href="Node101_%20IMS_Slave.html" aria-label="เปิด Node100 Irrigation Dashboard">
+        <span class="module-icon" aria-hidden="true">
+          <svg width="27" height="27" viewBox="0 0 24 24" fill="none">
+            <path d="M12 3.25c-2.5 3.2-6.25 7.1-6.25 11.1a6.25 6.25 0 1 0 12.5 0c0-4-3.75-7.9-6.25-11.1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+            <path d="M9.25 15.25a2.8 2.8 0 0 0 2.8 2.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="module-copy">
+          <span class="module-title">Node100 Irrigation</span>
+          <span class="module-description">เปิด Dashboard เพื่อติดตามเซ็นเซอร์ สถานะวาล์ว และจัดการตารางรดน้ำ</span>
+        </span>
+        <svg class="module-arrow" width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="m9 18 6-6-6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+    </section>
+  </main>
+
+  <dialog id="dashboard-sheet" class="dashboard-sheet" aria-labelledby="sheet-title">
+    <div class="sheet-header">
+      <div class="sheet-heading">
+        <div class="sheet-handle" aria-hidden="true"></div>
+        <h2 id="sheet-title" class="sheet-title">Node100 Irrigation Dashboard</h2>
+      </div>
+      <button id="close-dashboard-sheet" class="sheet-close" type="button" aria-label="ปิด Dashboard">×</button>
+    </div>
+    <iframe id="dashboard-frame" class="dashboard-frame" title="Node100 Irrigation Dashboard" src="about:blank"></iframe>
+  </dialog>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const firebaseConfig = {
+        apiKey: "AIzaSyCNOVy-CC45WMs1Fp5BXZG6nVX9gGSqdBQ",
+        authDomain: "smartgarden-v1-c83ce.firebaseapp.com",
+        projectId: "smartgarden-v1-c83ce",
+        appId: "1:625774766209:web:3c6319649e96f2aba6c580"
+      };
+      const dashboard = document.getElementById("dashboard");
+      const dashboardSheet = document.getElementById("dashboard-sheet");
+      const dashboardFrame = document.getElementById("dashboard-frame");
+      if (!window.firebase || !firebase.auth) {
+        window.location.replace("index.html");
+        return;
+      }
+
+      try {
+        if (firebase.apps.length === 0) firebase.initializeApp(firebaseConfig);
+        firebase.auth().onAuthStateChanged((user) => {
+          if (!user) {
+            if (dashboardSheet.open) closeDashboardSheet();
+            dashboard.hidden = true;
+            window.location.replace("index.html");
+            return;
+          }
+          dashboard.hidden = false;
+        }, (error) => {
+          console.error("Firebase authentication state listener failed.", error);
+          window.location.replace("index.html");
+        });
+      } catch (error) {
+        console.error("Firebase initialization failed.", error);
+        window.location.replace("index.html");
+        return;
+      }
+
+      const clock = document.getElementById("clock");
+      const timeDot = document.getElementById("time-dot");
+      let clockOffset = 0;
+
+      function renderClock() {
+        const now = new Date(Date.now() + clockOffset);
+        const date = new Intl.DateTimeFormat("th-TH-u-ca-buddhist", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+          timeZone: "Asia/Bangkok"
+        }).format(now);
+        const time = new Intl.DateTimeFormat("th-TH", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+          timeZone: "Asia/Bangkok"
+        }).format(now);
+        clock.textContent = date + " • " + time;
+      }
+
+      async function syncInternetTime() {
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 5000);
+        try {
+          const response = await fetch(window.location.href, {
+            method: "HEAD",
+            cache: "no-store",
+            signal: controller.signal
+          });
+          const serverTime = Date.parse(response.headers.get("Date") || "");
+          if (!response.ok || !Number.isFinite(serverTime)) {
+            throw new Error("Hosting response did not include a valid date");
+          }
+          clockOffset = serverTime - Date.now();
+          timeDot.classList.add("online");
+        } catch (error) {
+          timeDot.classList.remove("online");
+          console.warn("Internet time sync unavailable; using device clock.", error);
+        } finally {
+          window.clearTimeout(timeout);
+          renderClock();
+        }
+      }
+
+      document.querySelector(".module-card").addEventListener("click", (event) => {
+        event.preventDefault();
+        dashboardFrame.src = "Node101_%20IMS_Slave.html";
+        dashboardSheet.showModal();
+      });
+      function closeDashboardSheet() {
+        dashboardSheet.close();
+        dashboardFrame.src = "about:blank";
+      }
+      document.getElementById("close-dashboard-sheet").addEventListener("click", closeDashboardSheet);
+      dashboardSheet.addEventListener("cancel", (event) => {
+        event.preventDefault();
+        closeDashboardSheet();
+      });
+      dashboardSheet.addEventListener("click", (event) => {
+        if (event.target === dashboardSheet) closeDashboardSheet();
+      });
+      renderClock();
+      syncInternetTime();
+      window.setInterval(renderClock, 1000);
+      window.setInterval(syncInternetTime, 5 * 60 * 1000);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,1894 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- เชื่อมต่อ PWA Manifest และตั้งค่า Theme -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#2E7D32">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1146/1146115.png">
+    
+    <title>Agriculture Management System</title>
+    
+    <!-- Material Icons สำหรับ UI -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    
+    <style>
+        /* ==================== CSS Variables ==================== */
+        :root {
+            --primary-green: #2E7D32;
+            --light-green: #E8F5E9;
+            --text-dark: #333333;
+            --bg-gray: #F4F6F8;
+            --white: #FFFFFF;
+            --shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        /* ==================== Reset & Base ==================== */
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg-gray); color: var(--text-dark); overflow-x: hidden; }
+
+        /* ==================== Sticky Top Bar ==================== */
+        .top-bar {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background-color: var(--primary-green);
+            color: var(--white);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .top-bar-left h1 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .top-bar-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-home {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: var(--white);
+            border: none;
+            padding: 6px 12px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.9rem;
+            transition: background 0.3s;
+            text-decoration: none;
+        }
+        .btn-home:hover { background-color: rgba(255, 255, 255, 0.3); }
+        .top-bar-right .btn-home { cursor: pointer; }
+
+        /* ==================== App Container & Cards ==================== */
+        .app-container {
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        /* ควบคุมการแสดงผลแบบ SPA */
+        .view-section { display: none; animation: slideUp 0.3s ease-out; }
+        .view-section.active { display: block; }
+
+        .card {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .card-header-main {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--primary-green);
+            margin-bottom: 15px;
+            border-bottom: 2px solid var(--light-green);
+            padding-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ==================== Main Menu (Dashboard) ==================== */
+        .main-menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        .menu-btn {
+            background: var(--white);
+            border: 2px solid var(--light-green);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--primary-green);
+            font-weight: bold;
+        }
+        .menu-btn:hover { background: var(--light-green); transform: translateY(-2px); box-shadow: var(--shadow); }
+        .menu-btn i { font-size: 2rem; display: block; margin-bottom: 10px; }
+
+        /* ==================== Form Styles (Accordion) ==================== */
+        .form-card { padding: 0; overflow: hidden; }
+        .form-card .card-header { 
+            padding: 15px 20px; 
+            cursor: pointer; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            background-color: #fafafa;
+            font-weight: bold;
+            font-size: 1.05rem;
+            transition: background 0.2s;
+        }
+        .form-card .card-header:hover { background-color: var(--light-green); }
+        .form-content { padding: 20px; border-top: 1px solid #eee; display: none; animation: slideDown 0.3s ease-out; }
+        
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 0.9rem; font-weight: bold; margin-bottom: 5px; color: #555; }
+        .form-group input[type="text"], .form-group input[type="number"], .form-group input[type="date"], 
+        .form-group input[type="time"], .form-group select, .form-group textarea, .form-group input[type="email"], .form-group input[type="password"] {
+            width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; font-family: inherit;
+        }
+        
+        fieldset { border: 1px solid #ccc; padding: 15px; border-radius: 6px; margin-bottom: 15px; }
+        legend { font-size: 0.9em; font-weight: bold; color: var(--primary-green); padding: 0 5px; }
+
+        /* Checkbox Layout */
+        .checkbox-group { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 15px; }
+        .checkbox-group input[type="checkbox"] { margin-top: 4px; width: 18px; height: 18px; }
+        .checkbox-group .cb-content { flex: 1; }
+
+        .btn-submit {
+            background-color: var(--primary-green); color: var(--white); border: none;
+            padding: 12px 20px; border-radius: 6px; cursor: pointer; width: 100%;
+            font-size: 1rem; font-weight: bold; transition: background 0.3s;
+            display: flex; justify-content: center; align-items: center; gap: 8px;
+        }
+        .btn-submit:hover { background-color: #1b5e20; }
+        .btn-submit:disabled { background-color: #9e9e9e; cursor: not-allowed; }
+
+        /* ==================== Label Action Buttons (Settings) ==================== */
+        .label-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        .label-header label { margin-bottom: 0; }
+        .action-btns { display: flex; gap: 5px; }
+        .action-btns button {
+            background: none; border: 1px solid #ccc; cursor: pointer; color: #666;
+            display: flex; align-items: center; justify-content: center; padding: 2px 6px;
+            border-radius: 4px; transition: all 0.2s;
+        }
+        .action-btns button:hover { background: var(--light-green); color: var(--primary-green); border-color: var(--primary-green); }
+        .action-btns i { font-size: 1.1rem; }
+
+        /* Animations */
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Effect: กระพริบสำหรับสถานะแจ้งเตือน */
+        @keyframes blinkText { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+        .blink { animation: blinkText 1s infinite; }
+        
+        /* Login Overlay */
+        #login-section { display: flex; height: 100vh; justify-content: center; align-items: center; background-color: var(--bg-gray); }
+        #main-app { display: none; }
+    </style>
+</head>
+<body>
+
+    <!-- ==================== Login Screen ==================== -->
+    <div id="login-section">
+        <div class="card" style="width: 90%; max-width: 400px; text-align: center;">
+            <h2 style="color: var(--primary-green); margin-bottom: 20px; display:flex; align-items:center; justify-content:center; gap:10px;">
+                <i class="material-icons" style="font-size:2rem;">eco</i> Agriculture System
+            </h2>
+            <p style="color: #666; margin-bottom: 20px; font-size: 0.9rem;">กรุณาเข้าสู่ระบบเพื่อจัดการข้อมูลฟาร์ม</p>
+            <div class="form-group" style="text-align: left;">
+                <label>อีเมล (Email)</label>
+                <input type="email" id="login-email" placeholder="example@farm.com">
+            </div>
+            <div class="form-group" style="text-align: left;">
+                <label>รหัสผ่าน (Password)</label>
+                <input type="password" id="login-password" placeholder="******">
+            </div>
+            <button class="btn-submit" id="btn-login-submit" onclick="handleLogin()" style="margin-top:20px;">
+                <i class="material-icons">login</i> เข้าสู่ระบบ
+            </button>
+        </div>
+    </div>
+
+    <!-- ==================== Main Application ==================== -->
+    <div id="main-app">
+        <!-- Top Bar (Sticky) -->
+        <header class="top-bar">
+            <div class="top-bar-left">
+                <h1><i class="material-icons">eco</i> Agriculture Management System</h1>
+            </div>
+            <div class="top-bar-right">
+                <a class="btn-home" href="Node100_ IMS_Master.html" aria-label="กลับหน้าหลัก" title="กลับหน้าหลัก">
+                    <i class="material-icons" aria-hidden="true">home</i>
+                    <span>Home</span>
+                </a>
+            </div>
+        </header>
+
+        <!-- Main App Container -->
+        <main class="app-container">
+            <!-- 0. Dashboard View -->
+            <section id="view-dashboard" class="view-section active">
+                <div class="main-menu-grid">
+                    <div class="menu-btn" onclick="navigateTo('view-routines')">
+                        <i class="material-icons">format_list_bulleted</i> Daily Routines
+                    </div>
+                    <div class="menu-btn" onclick="navigateTo('view-calendar')">
+                        <i class="material-icons">calendar_month</i> Calendar
+                    </div>
+                    <div class="menu-btn" onclick="navigateTo('view-reporting')">
+                        <i class="material-icons">bar_chart</i> Reporting
+                    </div>
+                    <div class="menu-btn" onclick="navigateTo('view-settings')">
+                        <i class="material-icons">settings</i> Setting
+                    </div>
+                </div>
+            </section>
+
+            <!-- 1. Daily Agricultural Routines View -->
+            <section id="view-routines" class="view-section">
+                <div class="card-header-main">
+                    <i class="material-icons">format_list_bulleted</i> Daily agricultural routines (งานประจำวัน)
+                </div>
+
+                <!-- 1.1 การให้น้ำ -->
+                <div class="card form-card">
+                    <div class="card-header" onclick="toggleForm('form-water', this)">
+                        การให้น้ำ <i class="material-icons">expand_more</i>
+                    </div>
+                    <div id="form-water" class="form-content">
+                        <div class="form-group"><label>วันที่:</label><input type="date" class="auto-date"></div>
+                        <div class="form-group"><label>เวลา:</label><input type="time" class="auto-time"></div>
+                        <div class="form-group"><label>รายละเอียดกิจกรรมการให้น้ำ:</label><textarea rows="3" placeholder="ระบุรายละเอียด..."></textarea></div>
+                        <button class="btn-submit" onclick="saveData('การให้น้ำ', event)"><i class="material-icons">save</i> บันทึกข้อมูล</button>
+                    </div>
+                </div>
+
+                <!-- 1.2 การใส่ปุ๋ย -->
+                <div class="card form-card">
+                    <div class="card-header" onclick="toggleForm('form-fertilizer', this)">
+                        การใส่ปุ๋ย <i class="material-icons">expand_more</i>
+                    </div>
+                    <div id="form-fertilizer" class="form-content">
+                        <div class="form-group"><label>วันที่:</label><input type="date" class="auto-date"></div>
+                        <div class="form-group"><label>เวลา:</label><input type="time" class="auto-time"></div>
+                        <div class="form-group">
+                            <label>เลือกชื่อต้นไม้ (Tree):</label>
+                            <select id="sel-tree-fert"><option value="">-- กำลังโหลดข้อมูล... --</option></select>
+                        </div>
+                        <fieldset>
+                            <legend>ข้อมูลปุ๋ย</legend>
+                            <div class="form-group">
+                                <label>วิธีการ:</label>
+                                <select data-option-key="วิธีการใส่ปุ๋ย"><option value="ทางดิน">ทางดิน</option><option value="ฉีดพ่นทางใบ">ฉีดพ่นทางใบ</option></select>
+                            </div>
+                            <div class="form-group">
+                                <label>ประเภท:</label>
+                                <select data-option-key="ประเภทปุ๋ย"><option value="เคมี">เคมี</option><option value="ปุ๋ยเม็ด">ปุ๋ยเม็ด</option><option value="คอก">ปุ๋ยคอก</option><option value="หมัก">ปุ๋ยหมัก</option></select>
+                            </div>
+                            <div class="form-group">
+                                <label>สูตรปุ๋ย:</label>
+                                <select id="sel-fert-formula"><option value="">-- กำลังโหลดข้อมูล... --</option></select>
+                            </div>
+                            <div class="form-group">
+                                <label>จำนวน/น้ำหนัก (กรัม):</label>
+                                <input type="number" placeholder="เช่น 50">
+                            </div>
+                        </fieldset>
+                        <button class="btn-submit" onclick="saveData('การใส่ปุ๋ย', event)"><i class="material-icons">save</i> บันทึกข้อมูล</button>
+                    </div>
+                </div>
+
+                <!-- 1.3 การป้องกันโรคและแมลงศัตรูพืช -->
+                <div class="card form-card">
+                    <div class="card-header" onclick="toggleForm('form-disease', this)">
+                        การป้องกันโรคและแมลงศัตรูพืช <i class="material-icons">expand_more</i>
+                    </div>
+                    <div id="form-disease" class="form-content">
+                        <div class="form-group"><label>วันที่:</label><input type="date" class="auto-date"></div>
+                        <div class="form-group"><label>เวลา:</label><input type="time" class="auto-time"></div>
+                        <div class="form-group">
+                            <label>เลือกชื่อต้นไม้ (Tree):</label>
+                            <select id="sel-tree-dis"><option value="">-- กำลังโหลดข้อมูล... --</option></select>
+                        </div>
+                        <fieldset>
+                            <legend>สารเคมีกำจัดศัตรูพืช (Pesticide/Fungicide)</legend>
+                            <div class="form-group">
+                                <label>ประเภทสารที่ใช้:</label>
+                                <select><option value="">-- เลือกประเภท --</option><option value="fungicide">สารกำจัดเชื้อราพืช</option><option value="pesticide">สารกำจัดศัตรูพืช</option></select>
+                            </div>
+                            <div class="form-group">
+                                <label>ชื่อสามัญ (Common Name):</label>
+                                <select id="sel-chem-common"><option value="">-- กำลังโหลดข้อมูล... --</option></select>
+                            </div>
+                        </fieldset>
+                        <fieldset>
+                            <legend>จุลินทรีย์ (Microbe)</legend>
+                            <div class="form-group">
+                                <label>ประเภทจุลินทรีย์:</label>
+                                <select data-option-key="ประเภทจุลินทรีย์"><option value="">-- เลือกประเภทจุลินทรีย์ --</option><option value="กำจัดแมลง">กำจัดแมลง</option><option value="กำจัดเชื้อรา">กำจัดเชื้อรา</option><option value="ย่อยสลาย">ย่อยสลาย</option></select>
+                            </div>
+                            <div class="form-group">
+                                <label>ชื่อสามัญ จุลินทรีย์:</label>
+                                <select id="sel-microbe-common"><option value="">-- กำลังโหลดข้อมูล... --</option></select>
+                            </div>
+                        </fieldset>
+                        <button class="btn-submit" onclick="saveData('การป้องกันโรค', event)"><i class="material-icons">save</i> บันทึกข้อมูล</button>
+                    </div>
+                </div>
+
+                <!-- 1.4 การดูแลและรักษาต้นไม้ -->
+                <div class="card form-card">
+                    <div class="card-header" onclick="toggleForm('form-care', this)">
+                        การดูแลและรักษาต้นไม้ (Plant care) <i class="material-icons">expand_more</i>
+                    </div>
+                    <div id="form-care" class="form-content">
+                        <div class="form-group"><label>วันที่:</label><input type="date" class="auto-date"></div>
+                        <div class="form-group"><label>เวลา:</label><input type="time" class="auto-time"></div>
+                        <div class="form-group">
+                            <label>เลือกชื่อต้นไม้ (Tree):</label>
+                            <select id="sel-tree-care"><option value="">-- กำลังโหลดข้อมูล... --</option></select>
+                        </div>
+                        <fieldset>
+                            <legend>กิจกรรมการดูแล (เลือกได้มากกว่า 1)</legend>
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="chk-prune">
+                                <div class="cb-content">
+                                    <label for="chk-prune">ตัดแต่งกิ่ง (Prune / Trim)</label>
+                                    <textarea rows="3" placeholder="ระบุรายละเอียด..." style="margin-top: 5px; width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: inherit; resize: vertical;"></textarea>
+                                </div>
+                            </div>
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="chk-weed">
+                                <div class="cb-content">
+                                    <label for="chk-weed">กำจัดวัชพืช (Weed)</label>
+                                    <textarea rows="3" placeholder="ระบุรายละเอียด..." style="margin-top: 5px; width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: inherit; resize: vertical;"></textarea>
+                                </div>
+                            </div>
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="chk-loosen">
+                                <div class="cb-content">
+                                    <label for="chk-loosen">พรวนดิน (Loosen the soil)</label>
+                                    <textarea rows="3" placeholder="ระบุรายละเอียด..." style="margin-top: 5px; width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: inherit; resize: vertical;"></textarea>
+                                </div>
+                            </div>
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="chk-repot">
+                                <div class="cb-content">
+                                    <label for="chk-repot">เปลี่ยนกระถาง (Repot)</label>
+                                    <textarea rows="3" placeholder="ระบุรายละเอียด..." style="margin-top: 5px; width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: inherit; resize: vertical;"></textarea>
+                                </div>
+                            </div>
+                        </fieldset>
+                        <button class="btn-submit" onclick="saveData('การดูแลและรักษาต้นไม้', event)"><i class="material-icons">save</i> บันทึกข้อมูล</button>
+                    </div>
+                </div>
+
+                <!-- การประเมินลักษณะที่ปรากฏภายนอกทั้งหมดของพืช (Plant Phenotyping) -->
+                <div class="card form-card">
+                    <div class="card-header" onclick="toggleForm('form-pheno', this)">
+                        การประเมินลักษณะที่ปรากฏภายนอกทั้งหมดของพืช (Plant Phenotyping) <i class="material-icons">expand_more</i>
+                    </div>
+                    <div id="form-pheno" class="form-content">
+                        <div class="form-group"><label>วันที่:</label><input type="date" class="auto-date"></div>
+                        <div class="form-group"><label>เวลา:</label><input type="time" class="auto-time"></div>
+                        <div class="form-group">
+                            <label>เลือกชื่อต้นไม้ (Tree):</label>
+                            <select id="sel-tree-pheno"><option value="">-- กำลังโหลดข้อมูล... --</option></select>
+                        </div>
+                        <div class="form-group">
+                            <label>รายละเอียดการประเมินลักษณะ:</label>
+                            <textarea rows="4" placeholder="ระบุรายละเอียดลักษณะที่สังเกตเห็น..."></textarea>
+                        </div>
+                        <button class="btn-submit" onclick="saveData('การประเมินลักษณะพืช', event)"><i class="material-icons">save</i> บันทึกข้อมูล</button>
+                    </div>
+                </div>
+
+                <!-- การติดตามการเก็บเกี่ยว (Harvest Monitoring) -->
+                <div class="card form-card">
+                    <div class="card-header" onclick="toggleForm('form-harvest', this)">
+                        การติดตามการเก็บเกี่ยว (Harvest Monitoring) <i class="material-icons">expand_more</i>
+                    </div>
+                    <div id="form-harvest" class="form-content">
+                        <div class="form-group"><label>วันที่:</label><input type="date" class="auto-date"></div>
+                        <div class="form-group"><label>เวลา:</label><input type="time" class="auto-time"></div>
+                        <div class="form-group">
+                            <label>เลือกชื่อต้นไม้ (Tree):</label>
+                            <select id="sel-tree-harv"><option value="">-- กำลังโหลดข้อมูล... --</option></select>
+                        </div>
+                        <fieldset>
+                            <legend>ข้อมูลการเก็บเกี่ยว</legend>
+                            <div class="form-group">
+                                <label>ออกผล วันที่:</label>
+                                <input type="date" class="auto-date" id="harv-fruit-date">
+                            </div>
+                            <div class="form-group">
+                                <label>ระยะเวลาในการเก็บเกี่ยว (วัน):</label>
+                                <input type="number" min="0" placeholder="จำนวนวัน">
+                            </div>
+                            <div class="form-group">
+                                <label>ข้อสังเกต:</label>
+                                <textarea rows="3" placeholder="ระบุข้อสังเกตเพิ่มเติม..."></textarea>
+                            </div>
+                        </fieldset>
+                        <button class="btn-submit" onclick="saveData('การติดตามการเก็บเกี่ยว', event)"><i class="material-icons">save</i> บันทึกข้อมูล</button>
+                    </div>
+                </div>
+
+                <!-- 1.5 การซ่อมบำรุง -->
+                <div class="card form-card">
+                    <div class="card-header" onclick="toggleForm('form-maintenance', this)">
+                        การซ่อมบำรุง (Maintenance and repair) <i class="material-icons">expand_more</i>
+                    </div>
+                    <div id="form-maintenance" class="form-content">
+                        <div class="form-group"><label>วันที่:</label><input type="date" class="auto-date"></div>
+                        <div class="form-group"><label>เวลา:</label><input type="time" class="auto-time"></div>
+                        <div class="form-group">
+                            <label>ระบบที่ซ่อมบำรุง:</label>
+                            <select>
+                                <option value="">-- เลือกระบบ --</option>
+                                <option value="water_sys">ระบบให้น้ำ</option>
+                                <option value="greenhouse">โรงเรือนปลูกผัก</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>รายละเอียดของงานที่ทำ:</label>
+                            <textarea rows="3" placeholder="ระบุรายละเอียดการซ่อมบำรุง..."></textarea>
+                        </div>
+                        <button class="btn-submit" onclick="saveData('การซ่อมบำรุง', event)"><i class="material-icons">save</i> บันทึกข้อมูล</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. Calendar View (ระบบปฏิทินการเกษตร) -->
+            <section id="view-calendar" class="view-section">
+                <div class="card-header-main">
+                    <i class="material-icons">calendar_month</i> Agricultural calendar (ปฏิทินการเกษตร)
+                </div>
+
+                <!-- 2.1 สร้างกิจกรรม -->
+                <div class="card form-card">
+                    <div class="card-header" onclick="toggleForm('form-event', this)">
+                        สร้างกิจกรรม (Create Event) <i class="material-icons">expand_more</i>
+                    </div>
+                    <div id="form-event" class="form-content">
+                        <div class="form-group">
+                            <label>ชื่อกิจกรรม (Event Title):</label>
+                            <input type="text" placeholder="ระบุชื่อกิจกรรม...">
+                        </div>
+                        <div class="form-group">
+                            <label>วันที่เริ่ม (Date):</label>
+                            <input type="date" class="auto-date">
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <div class="form-group" style="flex: 1;">
+                                <label>เวลาเริ่ม (Start):</label>
+                                <input type="time">
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <label>เวลาสิ้นสุด (End):</label>
+                                <input type="time">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>สี (Theme):</label>
+                            <select>
+                                <option value="blue">สีฟ้า (กิจกรรมทั่วไป)</option>
+                                <option value="green">สีเขียว (ดูแล/ใส่ปุ๋ย)</option>
+                                <option value="orange">สีส้ม (ป้องกันโรค)</option>
+                                <option value="red">สีแดง (ด่วน/ซ่อมบำรุง)</option>
+                            </select>
+                        </div>
+                        <div class="checkbox-group" style="align-items: center; margin-bottom: 10px;">
+                            <input type="checkbox" id="chk-recurring">
+                            <label for="chk-recurring" style="margin-bottom: 0;">เกิดขึ้นซ้ำ (Recurring Event)</label>
+                        </div>
+                        <div class="checkbox-group" style="align-items: center; margin-bottom: 15px;">
+                            <input type="checkbox" id="chk-alert">
+                            <label for="chk-alert" style="margin-bottom: 0;">แจ้งเตือนเมื่อถึงเวลา (Popup Alert)</label>
+                        </div>
+                        <button class="btn-submit" onclick="saveData('สร้างกิจกรรม', event)"><i class="material-icons">save</i> บันทึกกิจกรรม</button>
+                    </div>
+                </div>
+
+                <!-- 2.2 ตารางงานวันนี้ (Time-Blocking) -->
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 2px solid var(--light-green); padding-bottom: 10px;">
+                        <button class="btn-home" style="background-color: var(--primary-green); padding: 5px 10px;" title="วันก่อนหน้า" onclick="changeDate(-1)">
+                            <i class="material-icons">chevron_left</i>
+                        </button>
+                        <input type="date" id="calendar-date" class="auto-date" onchange="loadCalendarEvents()" style="border: 1px solid #ccc; padding: 8px; border-radius: 6px; text-align: center; font-weight: bold; color: var(--primary-green); width: 160px;">
+                        <button class="btn-home" style="background-color: var(--primary-green); padding: 5px 10px;" title="วันถัดไป" onclick="changeDate(1)">
+                            <i class="material-icons">chevron_right</i>
+                        </button>
+                    </div>
+                    
+                    <h3 style="font-size: 1rem; color: #555; margin-bottom: 15px;">ตารางงาน (Time-Blocking)</h3>
+                    <div id="calendar-events-container">
+                        <div style="text-align:center; color:#999; padding:20px;">กำลังโหลดข้อมูลปฏิทิน...</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. Reporting View (ระบบรายงานผลและการค้นหา) -->
+            <section id="view-reporting" class="view-section">
+                <div class="card-header-main">
+                    <i class="material-icons">bar_chart</i> Reporting (การค้นหาและรายงานผล)
+                </div>
+
+                <!-- 3.1 ค้นหาทั่วไป -->
+                <div class="card form-card">
+                    <div class="card-header" onclick="toggleForm('report-other', this)">
+                        ค้นหาข้อมูลทั่วไป (ค้นหาจากทุกฐานข้อมูล) <i class="material-icons">expand_more</i>
+                    </div>
+                    <div id="report-other" class="form-content">
+                        <div class="form-group">
+                            <label>ค้นหาจากตัวอักษร:</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="text" placeholder="พิมพ์ข้อความที่ต้องการค้นหา..." style="flex: 1;">
+                                <button class="btn-submit" style="width: auto; padding: 10px 15px;" onclick="searchData('ทั่วไป', event)"><i class="material-icons">search</i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- รายงานการติดตามการเก็บเกี่ยว -->
+                <div class="card form-card">
+                    <div class="card-header" onclick="toggleForm('report-harvest', this)">
+                        รายงาน การติดตามการเก็บเกี่ยว (Harvest Monitoring) <i class="material-icons">expand_more</i>
+                    </div>
+                    <div id="report-harvest" class="form-content">
+                        <div class="form-group">
+                            <label>กดเพื่อโหลดรายการติดตามการเก็บเกี่ยวทั้งหมด:</label>
+                            <button class="btn-submit" style="width: auto; padding: 10px 15px;" onclick="searchData('รายงานเก็บเกี่ยว', event)"><i class="material-icons">sync</i> โหลดข้อมูล</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3.2 ค้นหาต้นไม้ -->
+                <div class="card form-card">
+                    <div class="card-header" onclick="toggleForm('report-tree', this)">
+                        ประวัติการดูแลของต้นไม้ (Tree) <i class="material-icons">expand_more</i>
+                    </div>
+                    <div id="report-tree" class="form-content">
+                        <div class="form-group">
+                            <label>เลือกชื่อต้นไม้ (ค้นหาประวัติ):</label>
+                            <div style="display: flex; gap: 10px;">
+                                <select id="report-sel-tree" style="flex: 1;"><option value="">-- เลือกจากหมวดต้นไม้ --</option></select>
+                                <button class="btn-submit" style="width: auto; padding: 10px 15px;" onclick="searchData('ต้นไม้', event)"><i class="material-icons">search</i></button>
+                            </div>
+                            <small style="color: var(--primary-green); display: block; margin-top: 5px;">* ระบบจะแสดงประวัติ: การใส่ปุ๋ย, การป้องกันโรค, และการดูแลรักษา แบบเต็มรูปแบบ</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- รายงาน การประเมินลักษณะที่ปรากฏภายนอก -->
+                <div class="card form-card">
+                    <div class="card-header" onclick="toggleForm('report-pheno-report', this)">
+                        รายงาน การประเมินลักษณะพืช (Phenotyping) <i class="material-icons">expand_more</i>
+                    </div>
+                    <div id="report-pheno-report" class="form-content">
+                        <div class="form-group">
+                            <label>ค้นหาจาก ชื่อต้นไม้:</label>
+                            <div style="display: flex; gap: 10px;">
+                                <select id="report-sel-tree-pheno" style="flex: 1;"><option value="">-- เลือกจากหมวดต้นไม้ --</option></select>
+                                <button class="btn-submit" style="width: auto; padding: 10px 15px;" onclick="searchData('รายงานประเมินพืช', event)"><i class="material-icons">search</i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3.3 ค้นหาสารเคมี -->
+                <div class="card form-card">
+                    <div class="card-header" onclick="toggleForm('report-chem', this)">
+                        สารเคมีกำจัดเชื้อรา/ศัตรูพืช (Pesticide) <i class="material-icons">expand_more</i>
+                    </div>
+                    <div id="report-chem" class="form-content">
+                        <div class="form-group">
+                            <label>ค้นหาจากทุกฟิลด์ (พิมพ์ตัวอักษรที่ต้องการ):</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="text" placeholder="เช่น เพลี้ย, ดูดซึม, EC, ชื่อการค้า..." style="flex: 1;">
+                                <button class="btn-submit" style="width: auto; padding: 10px 15px;" onclick="searchData('สารเคมี', event)"><i class="material-icons">search</i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3.4 ค้นหาจุลินทรีย์ -->
+                <div class="card form-card">
+                    <div class="card-header" onclick="toggleForm('report-microbe', this)">
+                        จุลินทรีย์ (Microbe) <i class="material-icons">expand_more</i>
+                    </div>
+                    <div id="report-microbe" class="form-content">
+                        <div class="form-group">
+                            <label>ค้นหาจากทุกฟิลด์ (พิมพ์ตัวอักษรที่ต้องการ):</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="text" placeholder="เช่น ย่อยสลาย, ผง, ทางดิน, ชื่อการค้า..." style="flex: 1;">
+                                <button class="btn-submit" style="width: auto; padding: 10px 15px;" onclick="searchData('จุลินทรีย์', event)"><i class="material-icons">search</i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3.4.1 ค้นหาปุ๋ย -->
+                <div class="card form-card">
+                    <div class="card-header" onclick="toggleForm('report-fertilizer', this)">
+                        ปุ๋ย (Fertilizer) <i class="material-icons">expand_more</i>
+                    </div>
+                    <div id="report-fertilizer" class="form-content">
+                        <div class="form-group">
+                            <label>ค้นหาจาก "ชื่อต้นไม้" หรือคำอื่นๆ ในหมวดปุ๋ย:</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="text" placeholder="เช่น ชื่อต้นไม้, เคมี, 15-15-15, ทางดิน..." style="flex: 1;">
+                                <button class="btn-submit" style="width: auto; padding: 10px 15px;" onclick="searchData('ปุ๋ย', event)"><i class="material-icons">search</i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3.5 ค้นหาซ่อมบำรุง -->
+                <div class="card form-card">
+                    <div class="card-header" onclick="toggleForm('report-maintenance', this)">
+                        ประวัติการซ่อมบำรุง (Maintenance) <i class="material-icons">expand_more</i>
+                    </div>
+                    <div id="report-maintenance" class="form-content">
+                        <div class="form-group">
+                            <label>เลือกระบบที่ซ่อมบำรุง:</label>
+                            <div style="display: flex; gap: 10px;">
+                                <select style="flex: 1;">
+                                    <option value="">-- เลือกระบบที่ต้องการดูประวัติ --</option>
+                                    <option value="water_sys">ระบบให้น้ำ</option>
+                                    <option value="greenhouse">โรงเรือนปลูกผัก</option>
+                                </select>
+                                <button class="btn-submit" style="width: auto; padding: 10px 15px;" onclick="searchData('ซ่อมบำรุง', event)"><i class="material-icons">search</i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. Settings View (การตั้งค่า Master Data) -->
+            <section id="view-settings" class="view-section">
+                <div class="card-header-main">
+                    <i class="material-icons">settings</i> Setting (การตั้งค่า Master Data)
+                </div>
+
+                <!-- 4.1 ตั้งค่า หมวดต้นไม้ -->
+                <div class="card form-card">
+                    <div class="card-header" onclick="toggleForm('set-tree', this)">
+                        การตั้งค่า หมวดต้นไม้ (Tree) <i class="material-icons">expand_more</i>
+                    </div>
+                    <div id="set-tree" class="form-content">
+                        <div class="form-group">
+                            <div class="label-header">
+                                <label>ประเภทต้นไม้:</label>
+                                <div class="action-btns">
+                                    <button type="button" onclick="manageOption('add', 'ประเภทต้นไม้', event)" title="เพิ่ม"><i class="material-icons">add</i></button>
+                                    <button type="button" onclick="manageOption('edit', 'ประเภทต้นไม้', event)" title="แก้ไข"><i class="material-icons">edit</i></button>
+                                    <button type="button" onclick="manageOption('delete', 'ประเภทต้นไม้', event)" title="ลบ"><i class="material-icons">delete</i></button>
+                                </div>
+                            </div>
+                            <select data-option-key="ประเภทต้นไม้">
+                                <option value="">-- เลือกประเภท --</option>
+                                <option value="ไม้ผล">ไม้ผล</option>
+                                <option value="พืชผัก">พืชผัก</option>
+                                <option value="ไม้ดอก">ไม้ดอก</option>
+                                <option value="ไม้ประดับ">ไม้ประดับ</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>รหัสต้นไม้ (Auto):</label>
+                            <input type="text" placeholder="ระบบจะเป็นผู้จัดทำขึ้นเองแบบ Auto" readonly style="background-color: #f0f0f0;">
+                        </div>
+                        <div class="form-group"><label>วันที่บันทึก:</label><input type="date" class="auto-date" readonly style="background-color: #f0f0f0;"></div>
+                        <div class="form-group"><label>เวลาที่บันทึก:</label><input type="time" class="auto-time" readonly style="background-color: #f0f0f0;"></div>
+                        
+                        <div class="form-group">
+                            <label>ชื่อต้นไม้:</label>
+                            <input type="text" id="setting-tree-name" placeholder="ระบุชื่อต้นไม้...">
+                        </div>
+                        
+                        <fieldset>
+                            <legend>อายุต้นไม้</legend>
+                            <div style="display: flex; gap: 10px;">
+                                <div class="form-group" style="flex: 1;"><label>ปี:</label><input type="number" min="0" placeholder="จำนวนปี"></div>
+                                <div class="form-group" style="flex: 1;"><label>เดือน:</label><input type="number" min="0" max="11" placeholder="จำนวนเดือน"></div>
+                                <div class="form-group" style="flex: 1;"><label>วัน:</label><input type="number" min="0" max="31" placeholder="จำนวนวัน"></div>
+                            </div>
+                        </fieldset>
+
+                        <div class="form-group">
+                            <label>หมายเหตุและข้อสังเกต:</label>
+                            <textarea rows="3" placeholder="ระบุรายละเอียดเพิ่มเติม..."></textarea>
+                        </div>
+                        <button class="btn-submit" onclick="saveData('ตั้งค่าต้นไม้', event)"><i class="material-icons">save</i> บันทึกข้อมูล</button>
+                    </div>
+                </div>
+
+                <!-- 4.2 ตั้งค่า หมวดปุ๋ย -->
+                <div class="card form-card">
+                    <div class="card-header" onclick="toggleForm('set-fertilizer', this)">
+                        การตั้งค่า หมวดปุ๋ย (Fertilizer) <i class="material-icons">expand_more</i>
+                    </div>
+                    <div id="set-fertilizer" class="form-content">
+                        <div class="form-group">
+                            <div class="label-header">
+                                <label>วิธีการใส่ปุ๋ย:</label>
+                                <div class="action-btns">
+                                    <button type="button" onclick="manageOption('add', 'วิธีการใส่ปุ๋ย', event)" title="เพิ่ม"><i class="material-icons">add</i></button>
+                                    <button type="button" onclick="manageOption('edit', 'วิธีการใส่ปุ๋ย', event)" title="แก้ไข"><i class="material-icons">edit</i></button>
+                                    <button type="button" onclick="manageOption('delete', 'วิธีการใส่ปุ๋ย', event)" title="ลบ"><i class="material-icons">delete</i></button>
+                                </div>
+                            </div>
+                            <select data-option-key="วิธีการใส่ปุ๋ย"><option value="ทางดิน">ทางดิน</option><option value="ฉีดพ่นทางใบ">ฉีดพ่นทางใบ</option></select>
+                        </div>
+                        <div class="form-group">
+                            <div class="label-header">
+                                <label>ประเภทปุ๋ย:</label>
+                                <div class="action-btns">
+                                    <button type="button" onclick="manageOption('add', 'ประเภทปุ๋ย', event)" title="เพิ่ม"><i class="material-icons">add</i></button>
+                                    <button type="button" onclick="manageOption('edit', 'ประเภทปุ๋ย', event)" title="แก้ไข"><i class="material-icons">edit</i></button>
+                                    <button type="button" onclick="manageOption('delete', 'ประเภทปุ๋ย', event)" title="ลบ"><i class="material-icons">delete</i></button>
+                                </div>
+                            </div>
+                            <select data-option-key="ประเภทปุ๋ย"><option value="เคมี">เคมี</option><option value="ปุ๋ยเม็ด">ปุ๋ยเม็ด</option><option value="คอก">ปุ๋ยคอก</option><option value="หมัก">ปุ๋ยหมัก</option></select>
+                        </div>
+                        <div class="form-group"><label>สูตรปุ๋ย:</label><input type="text" placeholder="เช่น 15-15-15"></div>
+                        <div class="form-group"><label>คุณสมบัติและรายละเอียด:</label><textarea rows="3" placeholder="ระบุคุณสมบัติ..."></textarea></div>
+                        <button class="btn-submit" onclick="saveData('ตั้งค่าหมวดปุ๋ย', event)"><i class="material-icons">save</i> บันทึกข้อมูล</button>
+                    </div>
+                </div>
+
+                <!-- 4.3 ตั้งค่า หมวดสารเคมี -->
+                <div class="card form-card">
+                    <div class="card-header" onclick="toggleForm('set-pesticide', this)">
+                        การตั้งค่า หมวดสารเคมี (Pesticide/Fungicide) <i class="material-icons">expand_more</i>
+                    </div>
+                    <div id="set-pesticide" class="form-content">
+                        <div class="form-group"><label>ชื่อสามัญ (Common Name):</label><input type="text" placeholder="ระบุชื่อสามัญ"></div>
+                        <div class="form-group"><label>ชื่อการค้า (Trade name):</label><input type="text" placeholder="ระบุชื่อการค้า"></div>
+                        <div class="form-group"><label>เปอร์เซ็นต์และความเข้มข้น:</label><input type="text" placeholder="ระบุความเข้มข้น"></div>
+                        <div class="form-group">
+                            <div class="label-header">
+                                <label>ลักษณะของเนื้อยาและการละลายน้ำ:</label>
+                                <div class="action-btns">
+                                    <button type="button" onclick="manageOption('add', 'ลักษณะของเนื้อยา (เคมี)', event)" title="เพิ่ม"><i class="material-icons">add</i></button>
+                                    <button type="button" onclick="manageOption('edit', 'ลักษณะของเนื้อยา (เคมี)', event)" title="แก้ไข"><i class="material-icons">edit</i></button>
+                                    <button type="button" onclick="manageOption('delete', 'ลักษณะของเนื้อยา (เคมี)', event)" title="ลบ"><i class="material-icons">delete</i></button>
+                                </div>
+                            </div>
+                            <select data-option-key="ลักษณะของเนื้อยา (เคมี)"><option value="WP">WP (ผงละลายน้ำ)</option><option value="EC">EC (ครีมหรือน้ำ, น้ำมัน)</option><option value="SC">SC (สารแขวนลอย)</option></select>
+                        </div>
+                        <div class="form-group">
+                            <label>ประเภทสาร:</label>
+                            <select><option value="กำจัดแมลง">สารกำจัดแมลง</option><option value="กำจัดเชื้อรา">สารกำจัดเชื้อรา</option></select>
+                        </div>
+                        <div class="form-group">
+                            <label>ประเภทการใช้งาน:</label>
+                            <select><option value="ทางดิน">ใส่ทางดิน</option><option value="ราดทางดิน">ราดทางดิน</option><option value="ฉีดพ่นทางดิน">ฉีดพ่นทางดิน</option><option value="ฉีดพ่นทางใบ">ฉีดพ่นทางใบ</option></select>
+                        </div>
+                        <div class="form-group"><label>รายละเอียดการใช้งาน:</label><textarea rows="2"></textarea></div>
+                        <div class="form-group"><label>คุณสมบัติในการกำจัด:</label><textarea rows="2"></textarea></div>
+                        <div class="form-group">
+                            <label>ประเภทการออกฤทธิ์:</label>
+                            <select><option value="สัมผัส">แบบสัมผัส (เคลือบผิว)</option><option value="ดูดซึม">ดูดซึม (วิ่งเข้าสู่ท่อลำเลียง)</option></select>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <div class="form-group" style="flex: 1;"><label>ระยะเวลาออกฤทธิ์ (วัน):</label><input type="number" min="0"></div>
+                            <div class="form-group" style="flex: 1;"><label>ระยะเวลาปลอดภัย (วัน):</label><input type="number" min="0"></div>
+                        </div>
+                        <button class="btn-submit" style="margin-top: 10px;" onclick="saveData('ตั้งค่าสารเคมี', event)"><i class="material-icons">save</i> บันทึกข้อมูล</button>
+                    </div>
+                </div>
+
+                <!-- 4.4 ตั้งค่า หมวดจุลินทรีย์ -->
+                <div class="card form-card">
+                    <div class="card-header" onclick="toggleForm('set-microbe', this)">
+                        การตั้งค่า หมวดจุลินทรีย์ (Microbe) <i class="material-icons">expand_more</i>
+                    </div>
+                    <div id="set-microbe" class="form-content">
+                        <div class="form-group"><label>ชื่อสามัญ จุลินทรีย์:</label><input type="text" placeholder="ระบุชื่อสามัญ"></div>
+                        <div class="form-group"><label>ชื่อการค้าจุลินทรีย์:</label><input type="text" placeholder="ระบุชื่อการค้า"></div>
+                        <div class="form-group">
+                            <div class="label-header">
+                                <label>ลักษณะของเนื้อยาและการละลายน้ำจุลินทรีย์:</label>
+                                <div class="action-btns">
+                                    <button type="button" onclick="manageOption('add', 'ลักษณะของเนื้อยา (จุลินทรีย์)', event)" title="เพิ่ม"><i class="material-icons">add</i></button>
+                                    <button type="button" onclick="manageOption('edit', 'ลักษณะของเนื้อยา (จุลินทรีย์)', event)" title="แก้ไข"><i class="material-icons">edit</i></button>
+                                    <button type="button" onclick="manageOption('delete', 'ลักษณะของเนื้อยา (จุลินทรีย์)', event)" title="ลบ"><i class="material-icons">delete</i></button>
+                                </div>
+                            </div>
+                            <select data-option-key="ลักษณะของเนื้อยา (จุลินทรีย์)"><option value="ผง">ผงละลายน้ำ</option><option value="ครีม">ครีม</option><option value="น้ำ">น้ำ</option></select>
+                        </div>
+                        <div class="form-group">
+                            <div class="label-header">
+                                <label>ประเภทจุลินทรีย์:</label>
+                                <div class="action-btns">
+                                    <button type="button" onclick="manageOption('add', 'ประเภทจุลินทรีย์', event)" title="เพิ่ม"><i class="material-icons">add</i></button>
+                                    <button type="button" onclick="manageOption('edit', 'ประเภทจุลินทรีย์', event)" title="แก้ไข"><i class="material-icons">edit</i></button>
+                                    <button type="button" onclick="manageOption('delete', 'ประเภทจุลินทรีย์', event)" title="ลบ"><i class="material-icons">delete</i></button>
+                                </div>
+                            </div>
+                            <select data-option-key="ประเภทจุลินทรีย์"><option value="กำจัดแมลง">กำจัดแมลง</option><option value="กำจัดเชื้อรา">กำจัดเชื้อรา</option><option value="ย่อยสลาย">ย่อยสลาย</option></select>
+                        </div>
+                        <div class="form-group">
+                            <div class="label-header">
+                                <label>ประเภทการใช้งานจุลินทรีย์:</label>
+                                <div class="action-btns">
+                                    <button type="button" onclick="manageOption('add', 'ประเภทการใช้งานจุลินทรีย์', event)" title="เพิ่ม"><i class="material-icons">add</i></button>
+                                    <button type="button" onclick="manageOption('edit', 'ประเภทการใช้งานจุลินทรีย์', event)" title="แก้ไข"><i class="material-icons">edit</i></button>
+                                    <button type="button" onclick="manageOption('delete', 'ประเภทการใช้งานจุลินทรีย์', event)" title="ลบ"><i class="material-icons">delete</i></button>
+                                </div>
+                            </div>
+                            <select data-option-key="ประเภทการใช้งานจุลินทรีย์"><option value="ราดทางดิน">ราดทางดิน</option><option value="ฉีดพ่นทางดิน">ฉีดพ่นทางดิน</option><option value="ฉีดพ่นทางใบ">ฉีดพ่นทางใบ</option></select>
+                        </div>
+                        <div class="form-group"><label>รายละเอียดการใช้งาน:</label><textarea rows="2"></textarea></div>
+                        <div class="form-group"><label>คุณสมบัติในการกำจัด:</label><textarea rows="2"></textarea></div>
+                        <div class="form-group"><label>รายละเอียดการออกฤทธิ์:</label><textarea rows="2"></textarea></div>
+                        <div style="display: flex; gap: 10px;">
+                            <div class="form-group" style="flex: 1;"><label>ระยะเวลาออกฤทธิ์ (วัน):</label><input type="number" min="0"></div>
+                            <div class="form-group" style="flex: 1;"><label>ระยะเวลาปลอดภัย (วัน):</label><input type="number" min="0"></div>
+                        </div>
+                        <button class="btn-submit" style="margin-top: 10px;" onclick="saveData('ตั้งค่าจุลินทรีย์', event)"><i class="material-icons">save</i> บันทึกข้อมูล</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- นำเข้า Firebase SDK และ Service Worker -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, setDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCNOVy-CC45WMs1Fp5BXZG6nVX9gGSqdBQ",
+            authDomain: "smartgarden-v1-c83ce.firebaseapp.com",
+            databaseURL: "https://smartgarden-v1-c83ce-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "smartgarden-v1-c83ce",
+            storageBucket: "smartgarden-v1-c83ce.firebasestorage.app",
+            messagingSenderId: "625774766209",
+            appId: "1:625774766209:web:3c6319649e96f2aba6c580"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // ==========================================
+        // ติดตั้ง PWA Service Worker
+        // ==========================================
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('ServiceWorker ทำงานสำเร็จ ขอบเขต: ', reg.scope))
+                    .catch(err => console.log('ServiceWorker ติดตั้งไม่สำเร็จ: ', err));
+            });
+        }
+
+        // ==========================================
+        // ระบบ Authentication (เข้าสู่ระบบ / ออกจากระบบ)
+        // ==========================================
+        onAuthStateChanged(auth, (user) => {
+            const loginSection = document.getElementById('login-section');
+            const mainApp = document.getElementById('main-app');
+            
+            if (user) {
+                loginSection.style.display = 'none';
+                mainApp.style.display = 'block';
+                loadMasterData();
+                
+                const calDate = document.getElementById('calendar-date');
+                if(calDate && !calDate.value) {
+                    const today = new Date();
+                    const year = today.getFullYear();
+                    const month = String(today.getMonth() + 1).padStart(2, '0');
+                    const day = String(today.getDate()).padStart(2, '0');
+                    calDate.value = `${year}-${month}-${day}`;
+                    loadCalendarEvents();
+                }
+            } else {
+                loginSection.style.display = 'flex';
+                mainApp.style.display = 'none';
+            }
+        });
+
+        window.handleLogin = async function() {
+            const email = document.getElementById('login-email').value;
+            const pass = document.getElementById('login-password').value;
+            const btn = document.getElementById('btn-login-submit');
+            
+            if(!email || !pass) { 
+                alert("กรุณากรอกอีเมลและรหัสผ่าน"); 
+                return; 
+            }
+            
+            btn.innerHTML = '<i class="material-icons" style="animation: spin 2s linear infinite;">hourglass_empty</i> กำลังตรวจสอบ...';
+            btn.disabled = true;
+
+            try {
+                await signInWithEmailAndPassword(auth, email, pass);
+            } catch(error) {
+                console.error("Login Error:", error);
+                alert("เข้าสู่ระบบไม่สำเร็จ: กรุณาตรวจสอบอีเมลหรือรหัสผ่านให้ถูกต้อง");
+            } finally {
+                btn.innerHTML = '<i class="material-icons">login</i> เข้าสู่ระบบ';
+                btn.disabled = false;
+            }
+        };
+
+        // ==========================================
+        // 1. ระบบดึงข้อมูล Master Data มาแสดงใน Dropdown
+        // ==========================================
+        window.loadMasterData = async function() {
+            try {
+                const treeSnap = await getDocs(collection(db, "master_trees"));
+                let treeOptions = '<option value="">-- เลือกชื่อต้นไม้ --</option>';
+                treeSnap.forEach(doc => {
+                    const data = doc.data();
+                    if(data.tree_name) treeOptions += `<option value="${data.tree_name}">${data.tree_name}</option>`;
+                });
+                document.getElementById('sel-tree-fert').innerHTML = treeOptions;
+                document.getElementById('sel-tree-dis').innerHTML = treeOptions;
+                document.getElementById('sel-tree-care').innerHTML = treeOptions;
+                document.getElementById('report-sel-tree').innerHTML = treeOptions; 
+                document.getElementById('sel-tree-pheno').innerHTML = treeOptions;
+                document.getElementById('sel-tree-harv').innerHTML = treeOptions;
+                document.getElementById('report-sel-tree-pheno').innerHTML = treeOptions;
+
+                const fertSnap = await getDocs(collection(db, "master_fertilizers"));
+                let fertOptions = '<option value="">-- เลือกสูตรปุ๋ย --</option>';
+                fertSnap.forEach(doc => {
+                    const data = doc.data();
+                    if(data.formula) fertOptions += `<option value="${data.formula}">${data.formula}</option>`;
+                });
+                document.getElementById('sel-fert-formula').innerHTML = fertOptions;
+
+                const chemSnap = await getDocs(collection(db, "master_pesticides"));
+                let chemOptions = '<option value="">-- เลือกชื่อสามัญ --</option>';
+                chemSnap.forEach(doc => {
+                    const data = doc.data();
+                    if(data.common_name) chemOptions += `<option value="${data.common_name}">${data.common_name}</option>`;
+                });
+                document.getElementById('sel-chem-common').innerHTML = chemOptions;
+
+                const microbeSnap = await getDocs(collection(db, "master_microbes"));
+                let microbeOptions = '<option value="">-- เลือกชื่อสามัญ จุลินทรีย์ --</option>';
+                microbeSnap.forEach(doc => {
+                    const data = doc.data();
+                    if(data.common_name) microbeOptions += `<option value="${data.common_name}">${data.common_name}</option>`;
+                });
+                document.getElementById('sel-microbe-common').innerHTML = microbeOptions;
+
+                const sysOptSnap = await getDocs(collection(db, "system_options"));
+                sysOptSnap.forEach(doc => {
+                    const fieldName = doc.id;
+                    const vals = doc.data().values || [];
+                    
+                    document.querySelectorAll(`select[data-option-key="${fieldName}"]`).forEach(sel => {
+                        const hasDefault = sel.options.length > 0 && sel.options[0].value === "";
+                        const defaultText = hasDefault ? sel.options[0].text : "";
+                        
+                        let newHtml = '';
+                        if (hasDefault) newHtml += `<option value="">${defaultText}</option>`;
+                        if(vals.length === 0) newHtml += '<option value="" disabled>-- ไม่มีข้อมูล --</option>';
+                        vals.forEach(v => newHtml += `<option value="${v}">${v}</option>`);
+                        sel.innerHTML = newHtml;
+                    });
+                });
+            } catch (error) {
+                console.error("Error loading master data: ", error);
+            }
+        };
+
+        // ==========================================
+        // 2. ระบบจัดการตัวเลือก (Manage Options)
+        // ==========================================
+        window.manageOption = async function(action, fieldName, event) {
+            const formGroup = event.currentTarget.closest('.form-group');
+            const selectEl = formGroup.querySelector('select');
+            if(!selectEl) return;
+
+            const docRef = doc(db, 'system_options', fieldName);
+            let optionsArray = [];
+
+            try {
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    optionsArray = docSnap.data().values || [];
+                } else {
+                    Array.from(selectEl.options).forEach(opt => {
+                        if(opt.value && opt.value !== "") optionsArray.push(opt.text);
+                    });
+                }
+            } catch(e) { console.error(e); }
+
+            let updated = false;
+
+            if (action === 'add') {
+                const newVal = prompt(`เพิ่มตัวเลือกใหม่สำหรับ [${fieldName}]:`);
+                if (newVal && newVal.trim() !== '') {
+                    if (!optionsArray.includes(newVal.trim())) {
+                        optionsArray.push(newVal.trim());
+                        updated = true;
+                    } else {
+                        alert('มีตัวเลือกนี้อยู่แล้ว!');
+                    }
+                }
+            } else if (action === 'edit') {
+                if (!selectEl.value) { alert('กรุณาเลือกรายการที่ต้องการแก้ไขก่อน'); return; }
+                const currentText = selectEl.options[selectEl.selectedIndex].text;
+                const newVal = prompt(`แก้ไข '${currentText}' เป็น:`, currentText);
+                if (newVal && newVal.trim() !== '' && newVal !== currentText) {
+                    const idx = optionsArray.indexOf(currentText);
+                    if (idx > -1) {
+                        optionsArray[idx] = newVal.trim();
+                    } else {
+                        optionsArray.push(newVal.trim()); 
+                    }
+                    updated = true;
+                }
+            } else if (action === 'delete') {
+                if (!selectEl.value) { alert('กรุณาเลือกรายการที่ต้องการลบก่อน'); return; }
+                const currentText = selectEl.options[selectEl.selectedIndex].text;
+                if (confirm(`คุณต้องการลบ '${currentText}' ออกจากตัวเลือกใช่หรือไม่?`)) {
+                    const idx = optionsArray.indexOf(currentText);
+                    if (idx > -1) {
+                        optionsArray.splice(idx, 1);
+                        updated = true;
+                    }
+                }
+            }
+
+            if (updated) {
+                try {
+                    const btns = formGroup.querySelectorAll('button');
+                    btns.forEach(b => b.disabled = true);
+                    await setDoc(docRef, { values: optionsArray });
+                    
+                    document.querySelectorAll(`select[data-option-key="${fieldName}"]`).forEach(sel => {
+                        const hasDefault = sel.options.length > 0 && sel.options[0].value === "";
+                        const defaultText = hasDefault ? sel.options[0].text : "";
+                        let newHtml = '';
+                        if (hasDefault) newHtml += `<option value="">${defaultText}</option>`;
+                        if(optionsArray.length === 0) newHtml += '<option value="" disabled>-- ไม่มีข้อมูล --</option>';
+                        optionsArray.forEach(val => {
+                            newHtml += `<option value="${val}">${val}</option>`;
+                        });
+                        sel.innerHTML = newHtml;
+                    });
+                    
+                    btns.forEach(b => b.disabled = false);
+                } catch(e) {
+                    console.error("Error updating options: ", e);
+                    alert("เกิดข้อผิดพลาดในการบันทึกตัวเลือก");
+                    formGroup.querySelectorAll('button').forEach(b => b.disabled = false);
+                }
+            }
+        };
+
+        // ==========================================
+        // 3. ระบบดึงข้อมูลปฏิทิน (Calendar Read & Edit)
+        // ==========================================
+        window.changeDate = function(offset) {
+            const dateInput = document.getElementById('calendar-date');
+            if(!dateInput || !dateInput.value) return;
+            let d = new Date(dateInput.value);
+            d.setDate(d.getDate() + offset);
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            dateInput.value = `${year}-${month}-${day}`;
+            loadCalendarEvents();
+        };
+
+        window.loadCalendarEvents = async function() {
+            const dateInput = document.getElementById('calendar-date');
+            if(!dateInput || !dateInput.value) return;
+            const targetDate = dateInput.value;
+            const eventContainer = document.getElementById('calendar-events-container');
+            eventContainer.innerHTML = '<div style="text-align:center; padding:20px;"><i class="material-icons" style="animation: spin 2s linear infinite;">hourglass_empty</i> กำลังโหลดตารางงาน...</div>';
+
+            try {
+                const q = query(collection(db, "calendar_events"), where("date", "==", targetDate));
+                const querySnapshot = await getDocs(q);
+                let events = [];
+                querySnapshot.forEach((doc) => {
+                    events.push({ id: doc.id, ...doc.data() });
+                });
+
+                events.sort((a, b) => (a.start_time || "").localeCompare(b.start_time || ""));
+
+                if(events.length === 0) {
+                    eventContainer.innerHTML = '<div style="text-align:center; color:#999; padding:20px; border: 2px dashed #ddd; border-radius: 8px;">ไม่มีกิจกรรมในวันนี้</div>';
+                    return;
+                }
+
+                let html = '';
+                events.forEach(ev => {
+                    let borderColor = '#2196F3'; let bgColor = '#E3F2FD'; let textColor = '#1565C0'; 
+                    if(ev.theme === 'green') { borderColor = '#4CAF50'; bgColor = '#E8F5E9'; textColor = '#2E7D32'; }
+                    else if(ev.theme === 'orange') { borderColor = '#FF9800'; bgColor = '#FFF3E0'; textColor = '#E65100'; }
+                    else if(ev.theme === 'red') { borderColor = '#F44336'; bgColor = '#FFEBEE'; textColor = '#C62828'; }
+
+                    html += `
+                    <div style="border-left: 4px solid ${borderColor}; background-color: ${bgColor}; padding: 15px; border-radius: 0 8px 8px 0; margin-bottom: 15px; position: relative;">
+                        <strong style="color: ${textColor}; display: block; margin-bottom: 5px; font-size: 1.05rem;">${ev.start_time} - ${ev.end_time} : ${ev.title}</strong>
+                        ${ev.recurring ? `<span style="font-size: 0.85rem; color: #555; margin-right: 15px;"><i class="material-icons" style="font-size: 1rem; vertical-align: middle;">event_repeat</i> ทำซ้ำทุกวัน</span>` : ''}
+                        ${ev.alert ? `<span style="font-size: 0.85rem; color: #555;"><i class="material-icons" style="font-size: 1rem; vertical-align: middle;">notifications_active</i> เปิดแจ้งเตือน</span>` : ''}
+                        <div style="position: absolute; bottom: 10px; right: 10px; display: flex; gap: 8px;">
+                            <button style="background: none; border: none; color: #4CAF50; cursor: pointer;" onclick="editCalendarEvent('${ev.id}')" title="แก้ไขกิจกรรม"><i class="material-icons">edit</i></button>
+                            <button style="background: none; border: none; color: #F44336; cursor: pointer;" onclick="deleteData('calendar_events', '${ev.id}', 'loadCalendarEvents')" title="ลบกิจกรรม"><i class="material-icons">delete</i></button>
+                        </div>
+                    </div>`;
+                });
+                eventContainer.innerHTML = html;
+            } catch (error) {
+                console.error(error);
+                eventContainer.innerHTML = '<div style="text-align:center; color:red; padding:20px;">เกิดข้อผิดพลาดในการโหลดข้อมูลปฏิทิน</div>';
+            }
+        };
+
+        window.editCalendarEvent = async function(id) {
+            try {
+                const docSnap = await getDoc(doc(db, "calendar_events", id));
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    const formDiv = document.getElementById('form-event');
+                    const inputs = formDiv.querySelectorAll('input');
+                    const selects = formDiv.querySelectorAll('select');
+                    
+                    inputs[0].value = data.title || '';
+                    inputs[1].value = data.date || '';
+                    inputs[2].value = data.start_time || '';
+                    inputs[3].value = data.end_time || '';
+                    selects[0].value = data.theme || 'blue';
+                    document.getElementById('chk-recurring').checked = data.recurring || false;
+                    document.getElementById('chk-alert').checked = data.alert || false;
+                    
+                    formDiv.dataset.editId = id;
+                    
+                    const submitBtn = formDiv.querySelector('.btn-submit');
+                    submitBtn.innerHTML = '<i class="material-icons">edit</i> บันทึกการแก้ไข';
+                    submitBtn.style.backgroundColor = '#FF9800'; 
+                    
+                    if (formDiv.style.display !== 'block') {
+                        const header = formDiv.previousElementSibling;
+                        if(header) header.click();
+                    }
+                    formDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            } catch(error) {
+                console.error("Error editing event:", error);
+                alert("ไม่สามารถดึงข้อมูลเพื่อแก้ไขได้: " + error.message);
+            }
+        };
+
+        window.deleteData = async function(colName, docId, callback, event=null) {
+            if(confirm("คุณต้องการลบข้อมูลนี้ใช่หรือไม่?")) {
+                try {
+                    await deleteDoc(doc(db, colName, docId));
+                    if(callback === 'loadCalendarEvents') loadCalendarEvents();
+                    if(callback === 'searchHarvest' && event) {
+                        document.querySelector('#report-harvest .btn-submit').click();
+                    }
+                } catch(error) {
+                    alert('ลบข้อมูลไม่สำเร็จ: ' + error.message);
+                }
+            }
+        };
+        
+        window.editHarvestEvent = async function(id) {
+            try {
+                const docSnap = await getDoc(doc(db, "routines_harvest", id));
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    const formDiv = document.getElementById('form-harvest');
+                    const dates = formDiv.querySelectorAll('.auto-date');
+                    const time = formDiv.querySelector('.auto-time');
+                    const tree = formDiv.querySelector('select');
+                    const num = formDiv.querySelector('input[type="number"]');
+                    const text = formDiv.querySelector('textarea');
+                    
+                    dates[0].value = data.date || '';
+                    time.value = data.time || '';
+                    tree.value = data.tree_name || '';
+                    dates[1].value = data.fruiting_date || '';
+                    num.value = data.duration_days || '';
+                    text.value = data.notes || '';
+                    
+                    formDiv.dataset.editId = id;
+                    
+                    const submitBtn = formDiv.querySelector('.btn-submit');
+                    submitBtn.innerHTML = '<i class="material-icons">edit</i> บันทึกการแก้ไข';
+                    submitBtn.style.backgroundColor = '#FF9800'; 
+                    
+                    navigateTo('view-routines');
+                    
+                    if (formDiv.style.display !== 'block') {
+                        const header = formDiv.previousElementSibling;
+                        if(header) header.click();
+                    }
+                    setTimeout(() => { formDiv.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300);
+                }
+            } catch(error) {
+                console.error(error);
+                alert("เกิดข้อผิดพลาด: " + error.message);
+            }
+        };
+
+        // ==========================================
+        // 4. ระบบรายงานผลและการค้นหา (Reporting System) 
+        // ==========================================
+        window.searchData = async function(category, event) {
+            const formContent = event.currentTarget.closest('.form-content');
+            
+            let resultContainer = formContent.querySelector('.report-result-container');
+            if(!resultContainer) {
+                resultContainer = document.createElement('div');
+                resultContainer.className = 'report-result-container';
+                resultContainer.style.cssText = 'padding: 15px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 6px; margin-top: 15px;';
+                formContent.appendChild(resultContainer);
+            }
+            
+            resultContainer.innerHTML = '<div style="text-align:center;"><i class="material-icons" style="animation: spin 2s linear infinite;">hourglass_empty</i> กำลังค้นหาข้อมูล...</div>';
+            resultContainer.style.display = 'block';
+
+            // ฟังก์ชันกวาดค้นหาทุกซอกทุกมุมของ Object เพื่อหาตัวอักษรที่ตรงกัน
+            const keywordMatch = (obj, keyword) => {
+                if (!obj) return false;
+                for (let k in obj) {
+                    if (k === 'created_at') continue; // ข้ามฟิลด์ที่เป็นเวลาบันทึกระบบเพื่อป้องกัน Error
+                    let val = obj[k];
+                    if (typeof val === 'object' && val !== null) {
+                        if (typeof val.toDate === 'function') continue; // ข้าม Object ประเภท Timestamp
+                        if (keywordMatch(val, keyword)) return true;
+                    } else if (val !== null && val !== undefined) {
+                        if (String(val).toLowerCase().includes(keyword)) return true;
+                    }
+                }
+                return false;
+            };
+
+            try {
+                let html = '';
+                
+                if(category === 'ทั่วไป') {
+                    const keyword = formContent.querySelector('input[type="text"]').value.trim().toLowerCase();
+                    if(!keyword) { resultContainer.innerHTML = '<span style="color:red;">กรุณาระบุคำค้นหา</span>'; return; }
+                    
+                    html += `<strong style="color:var(--primary-green);">ผลการค้นหาข้อมูลในฐานข้อมูลทั้งหมด สำหรับคำว่า "${keyword}":</strong><ul style="margin-top:10px; padding:0; list-style: none;">`;
+                    let found = 0;
+                    
+                    const allCollections = {
+                        'master_trees': 'Master Data: หมวดต้นไม้',
+                        'master_fertilizers': 'Master Data: หมวดปุ๋ย',
+                        'master_pesticides': 'Master Data: หมวดสารเคมี',
+                        'master_microbes': 'Master Data: หมวดจุลินทรีย์',
+                        'routines_water': 'งานประจำวัน: การให้น้ำ',
+                        'routines_fertilizer': 'งานประจำวัน: การใส่ปุ๋ย',
+                        'routines_disease': 'งานประจำวัน: การป้องกันโรค',
+                        'routines_care': 'งานประจำวัน: การดูแลและรักษา',
+                        'routines_phenotyping': 'งานประจำวัน: การประเมินลักษณะพืช',
+                        'routines_harvest': 'งานประจำวัน: การติดตามเก็บเกี่ยว',
+                        'routines_maintenance': 'งานประจำวัน: การซ่อมบำรุง',
+                        'calendar_events': 'ปฏิทิน: กิจกรรม'
+                    };
+
+                    const fieldDict = {
+                        tree_type: 'ประเภทต้นไม้', tree_name: 'ชื่อต้นไม้', age_years: 'อายุ (ปี)', age_months: 'อายุ (เดือน)', age_days: 'อายุ (วัน)', notes: 'หมายเหตุ',
+                        method: 'วิธีการ', fertilizer_type: 'ประเภท', formula: 'สูตร', amount_g: 'ปริมาณ (กรัม)',
+                        common_name: 'ชื่อสามัญ', trade_name: 'ชื่อการค้า', concentration: 'ความเข้มข้น', form: 'ลักษณะ', type: 'ประเภท', usage_method: 'การใช้งาน', usage_details: 'รายละเอียดการใช้งาน', features: 'คุณสมบัติ', effect_type: 'การออกฤทธิ์', active_days: 'ระยะเวลาออกฤทธิ์ (วัน)', safe_days: 'ระยะเวลาปลอดภัย (วัน)', effect_details: 'รายละเอียดการออกฤทธิ์',
+                        date: 'วันที่', time: 'เวลา', details: 'รายละเอียด',
+                        chem_type: 'ประเภทสารเคมี', chem_common_name: 'ชื่อสามัญสารเคมี', microbe_type: 'ประเภทจุลินทรีย์', microbe_common_name: 'ชื่อสามัญจุลินทรีย์',
+                        system: 'ระบบ',
+                        fruiting_date: 'ออกผล วันที่', duration_days: 'ระยะเวลาเก็บเกี่ยว (วัน)',
+                        title: 'ชื่อกิจกรรม', start_time: 'เวลาเริ่ม', end_time: 'เวลาสิ้นสุด', theme: 'สี (Theme)', recurring: 'เกิดขึ้นซ้ำ', alert: 'แจ้งเตือน'
+                    };
+
+                    for (const [colName, colLabel] of Object.entries(allCollections)) {
+                        const snap = await getDocs(collection(db, colName));
+                        snap.forEach(doc => {
+                            const dataObj = doc.data();
+                            
+                            if(keywordMatch(dataObj, keyword)) {
+                                found++;
+                                let detailHtml = '';
+                                
+                                for (const [key, value] of Object.entries(dataObj)) {
+                                    if (key === 'created_at') continue; 
+                                    
+                                    let displayKey = fieldDict[key] || key;
+                                    let displayVal = value;
+
+                                    if (typeof value === 'object' && value !== null) {
+                                        if (value.checked !== undefined) {
+                                            if (!value.checked) continue; 
+                                            displayVal = value.detail || '-';
+                                            displayKey = `รายละเอียดกิจกรรม (${key})`;
+                                        } else {
+                                            displayVal = JSON.stringify(value);
+                                        }
+                                    }
+                                    
+                                    if (typeof displayVal === 'boolean') {
+                                         displayVal = displayVal ? 'ใช่/เปิด' : 'ไม่/ปิด';
+                                    }
+
+                                    if (displayVal !== '' && displayVal !== null) {
+                                        detailHtml += `<b>${displayKey}:</b> <span style="color:#555;">${displayVal}</span><br>`;
+                                    }
+                                }
+
+                                html += `<li style="margin-bottom: 15px; background: #fff; padding: 15px; border-radius: 8px; border-left: 4px solid #2196F3; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                                            <div style="color: #1565C0; font-weight: bold; font-size: 1rem; border-bottom: 1px dashed #ccc; padding-bottom: 5px; margin-bottom: 8px;">
+                                                <i class="material-icons" style="font-size: 1rem; vertical-align: middle;">folder_open</i> หมวดหมู่: ${colLabel}
+                                            </div>
+                                            <div style="color: #333; font-size: 0.95rem; line-height: 1.5;">
+                                                ${detailHtml}
+                                            </div>
+                                         </li>`;
+                            }
+                        });
+                    }
+                    if(found===0) html += '<li>ไม่พบข้อมูลที่ตรงกันในทุกฐานข้อมูล</li>';
+                    html += '</ul>';
+                }
+                
+                else if(category === 'ต้นไม้') {
+                    const treeName = formContent.querySelector('select').value;
+                    if(!treeName) { resultContainer.innerHTML = '<span style="color:red;">กรุณาเลือกชื่อต้นไม้</span>'; return; }
+                    
+                    html += `<strong style="color:var(--primary-green);">ประวัติการดูแลรักษาต้นไม้: ${treeName}</strong><ul style="margin-top:10px; padding:0; list-style: none;">`;
+                    let found = 0;
+                    const historyCollections = ['routines_fertilizer', 'routines_disease', 'routines_care'];
+                    
+                    for(let c of historyCollections) {
+                        const q = query(collection(db, c), where("tree_name", "==", treeName));
+                        const snap = await getDocs(q);
+                        snap.forEach(doc => {
+                            found++;
+                            let d = doc.data();
+                            let detailHtml = '';
+                            
+                            if(c === 'routines_fertilizer') {
+                                detailHtml = `<div style="margin-top: 5px; color: #444; font-size: 0.95rem;">
+                                    <b>ประเภทงาน:</b> <span style="color:var(--primary-green);">การใส่ปุ๋ย</span><br>
+                                    <b>วิธีการ:</b> ${d.method || '-'}<br>
+                                    <b>ประเภทปุ๋ย:</b> ${d.fertilizer_type || '-'}<br>
+                                    <b>สูตรปุ๋ย:</b> ${d.formula || '-'}<br>
+                                    <b>ปริมาณ/น้ำหนัก:</b> ${d.amount_g || '0'} กรัม
+                                </div>`;
+                            } 
+                            else if(c === 'routines_disease') {
+                                detailHtml = `<div style="margin-top: 5px; color: #444; font-size: 0.95rem;">
+                                    <b>ประเภทงาน:</b> <span style="color:var(--primary-green);">การป้องกันโรคและศัตรูพืช</span><br>
+                                    <b>สารเคมีกำจัดศัตรูพืช (${d.chem_type || '-'}):</b> ${d.chem_common_name || '-'}<br>
+                                    <b>จุลินทรีย์ (${d.microbe_type || '-'}):</b> ${d.microbe_common_name || '-'}
+                                </div>`;
+                            } 
+                            else if(c === 'routines_care') {
+                                let careActs = [];
+                                if(d.prune && d.prune.checked) careActs.push(`<b>ตัดแต่งกิ่ง:</b> ${d.prune.detail || 'ไม่มีรายละเอียดเพิ่มเติม'}`);
+                                if(d.weed && d.weed.checked) careActs.push(`<b>กำจัดวัชพืช:</b> ${d.weed.detail || 'ไม่มีรายละเอียดเพิ่มเติม'}`);
+                                if(d.loosen && d.loosen.checked) careActs.push(`<b>พรวนดิน:</b> ${d.loosen.detail || 'ไม่มีรายละเอียดเพิ่มเติม'}`);
+                                if(d.repot && d.repot.checked) careActs.push(`<b>เปลี่ยนกระถาง:</b> ${d.repot.detail || 'ไม่มีรายละเอียดเพิ่มเติม'}`);
+                                
+                                detailHtml = `<div style="margin-top: 5px; color: #444; font-size: 0.95rem;">
+                                    <b>ประเภทงาน:</b> <span style="color:var(--primary-green);">การดูแลและรักษาต้นไม้</span><br>
+                                    ${careActs.length > 0 ? careActs.join('<br>') : 'ไม่มีข้อมูลย่อย'}
+                                </div>`;
+                            }
+                            
+                            html += `<li style="margin-bottom: 15px; background: #fff; padding: 15px; border-radius: 8px; border-left: 4px solid var(--primary-green); box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                                        <div style="color: #666; font-size: 0.85rem; border-bottom: 1px dashed #ccc; padding-bottom: 5px; margin-bottom: 8px;">
+                                            <i class="material-icons" style="font-size: 1rem; vertical-align: middle;">event</i> วันที่: ${d.date || '-'} | เวลา: ${d.time || '-'}
+                                        </div>
+                                        ${detailHtml}
+                                     </li>`;
+                        });
+                    }
+                    if(found===0) html += '<li>ยังไม่มีประวัติการบันทึกงานประจำวันของต้นไม้นี้</li>';
+                    html += '</ul>';
+                }
+                
+                else if(category === 'รายงานประเมินพืช') {
+                    const treeName = formContent.querySelector('select').value;
+                    if(!treeName) { resultContainer.innerHTML = '<span style="color:red;">กรุณาเลือกชื่อต้นไม้</span>'; return; }
+                    
+                    const q = query(collection(db, "routines_phenotyping"), where("tree_name", "==", treeName));
+                    const snap = await getDocs(q);
+                    html += `<strong style="color:var(--primary-green);">รายงานการประเมินพืช: ${treeName}</strong><ul style="margin-top:10px; padding:0; list-style: none;">`;
+                    let found = 0;
+                    snap.forEach(doc => {
+                        found++;
+                        let d = doc.data();
+                        html += `<li style="margin-bottom: 15px; background: #fff; padding: 15px; border-radius: 8px; border-left: 4px solid var(--primary-green); box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                                    <div style="color: #666; font-size: 0.85rem; border-bottom: 1px dashed #ccc; padding-bottom: 5px; margin-bottom: 8px;">
+                                        <i class="material-icons" style="font-size: 1rem; vertical-align: middle;">event</i> วันที่: ${d.date || '-'} | เวลา: ${d.time || '-'}
+                                    </div>
+                                    <div style="color: #444; font-size: 0.95rem;">
+                                        <b>รายละเอียดการประเมิน:</b><br>${d.details || '-'}
+                                    </div>
+                                 </li>`;
+                    });
+                    if(found===0) html += '<li>ไม่มีประวัติการประเมินลักษณะของต้นไม้นี้</li>';
+                    html += '</ul>';
+                }
+
+                else if(category === 'รายงานเก็บเกี่ยว') {
+                    const snap = await getDocs(collection(db, "routines_harvest"));
+                    html += `<strong style="color:var(--primary-green);">รายการติดตามการเก็บเกี่ยวทั้งหมด:</strong><ul style="margin-top:10px; padding:0; list-style: none;">`;
+                    let found = 0;
+                    
+                    let today = new Date();
+                    today.setHours(0,0,0,0);
+                    
+                    snap.forEach(doc => {
+                        found++;
+                        let d = doc.data();
+                        
+                        let fDate = new Date(d.fruiting_date || d.date);
+                        let duration = parseInt(d.duration_days) || 0;
+                        let harvestDate = new Date(fDate);
+                        harvestDate.setDate(harvestDate.getDate() + duration);
+                        
+                        let compHarv = new Date(harvestDate);
+                        compHarv.setHours(0,0,0,0);
+                        
+                        let statusText = "";
+                        let statusStyle = "";
+                        if(today.getTime() < compHarv.getTime()) {
+                            statusText = "ยังไม่ถึงเวลาเก็บผลผลิต";
+                            statusStyle = "color: #FF9800; font-weight: bold;";
+                        } else if (today.getTime() === compHarv.getTime()) {
+                            statusText = "เก็บผลผลิตได้แล้ว";
+                            statusStyle = "color: #4CAF50; font-weight: bold;";
+                            statusText = `<span class="blink">${statusText}</span>`; 
+                        } else {
+                            statusText = "เลยเวลาเก็บผลผลิตแล้ว";
+                            statusStyle = "color: #F44336; font-weight: bold;";
+                        }
+                        
+                        let showHarvDate = harvestDate.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
+                        let showFruitDate = fDate.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
+
+                        html += `<li style="margin-bottom: 15px; background: #fff; padding: 15px; border-radius: 8px; border-left: 4px solid var(--primary-green); box-shadow: 0 2px 4px rgba(0,0,0,0.05); position:relative;">
+                                    <div style="color: #444; font-size: 0.95rem;">
+                                        <b>ชื่อต้นไม้:</b> <span style="color:var(--info-color);">${d.tree_name || '-'}</span><br>
+                                        <b>ออกผล วันที่:</b> ${showFruitDate}<br>
+                                        <b>ระยะเวลาเก็บเกี่ยว:</b> ${duration} วัน<br>
+                                        <b>วันที่เก็บผลผลิต:</b> ${showHarvDate}<br>
+                                        <b>สถานะ:</b> <span style="${statusStyle}">${statusText}</span>
+                                    </div>
+                                    <div style="position: absolute; bottom: 10px; right: 10px; display: flex; gap: 8px;">
+                                        <button style="background: none; border: none; color: #4CAF50; cursor: pointer;" onclick="editHarvestEvent('${doc.id}')" title="แก้ไข"><i class="material-icons">edit</i></button>
+                                        <button style="background: none; border: none; color: #F44336; cursor: pointer;" onclick="deleteData('routines_harvest', '${doc.id}', 'searchHarvest', event)" title="ลบ"><i class="material-icons">delete</i></button>
+                                    </div>
+                                 </li>`;
+                    });
+                    if(found===0) html += '<li>ไม่มีรายการติดตามการเก็บเกี่ยว</li>';
+                    html += '</ul>';
+                }
+
+                // --- 1.1.1 ค้นหาสารเคมี (ไดนามิกทุกฟิลด์) ---
+                else if(category === 'สารเคมี') {
+                    const keyword = formContent.querySelector('input[type="text"]').value.trim().toLowerCase();
+                    if(!keyword) { resultContainer.innerHTML = '<span style="color:red;">กรุณาระบุคำค้นหา</span>'; return; }
+                    
+                    const snap = await getDocs(collection(db, "master_pesticides"));
+                    html += `<strong style="color:var(--primary-green);">ผลการค้นหาสารเคมี สำหรับ "${keyword}":</strong><ul style="margin-top:10px; padding:0; list-style: none;">`;
+                    let found = 0;
+                    snap.forEach(doc => {
+                        let d = doc.data();
+                        if(keywordMatch(d, keyword)) {
+                            found++;
+                            let detailHtml = '';
+                            const fieldDict = { common_name: 'ชื่อสามัญ', trade_name: 'ชื่อการค้า', concentration: 'ความเข้มข้น', form: 'ลักษณะเนื้อยา', type: 'ประเภทสาร', usage_method: 'การใช้งาน', usage_details: 'รายละเอียดการใช้งาน', features: 'คุณสมบัติการกำจัด', effect_type: 'การออกฤทธิ์', active_days: 'ระยะเวลาออกฤทธิ์ (วัน)', safe_days: 'ระยะเวลาปลอดภัย (วัน)' };
+                            for (const [key, value] of Object.entries(d)) {
+                                if (key === 'created_at') continue;
+                                let displayKey = fieldDict[key] || key;
+                                if(key === 'common_name') { detailHtml = `<b style="color:var(--primary-green); font-size:1.05rem;">${value || '-'}</b><br>` + detailHtml; }
+                                else { detailHtml += `<b>${displayKey}:</b> ${value || '-'}<br>`; }
+                            }
+                            html += `<li style="margin-bottom: 15px; background: #fff; padding: 15px; border-radius: 8px; border-left: 4px solid var(--primary-green); box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                                        <div style="color: #444; font-size: 0.95rem;">${detailHtml}</div>
+                                     </li>`;
+                        }
+                    });
+                    if(found===0) html += '<li>ไม่พบข้อมูลที่ตรงกันในฐานข้อมูล</li>';
+                    html += '</ul>';
+                }
+
+                // --- 1.1.2 ค้นหาจุลินทรีย์ (ไดนามิกทุกฟิลด์) ---
+                else if(category === 'จุลินทรีย์') {
+                    const keyword = formContent.querySelector('input[type="text"]').value.trim().toLowerCase();
+                    if(!keyword) { resultContainer.innerHTML = '<span style="color:red;">กรุณาระบุคำค้นหา</span>'; return; }
+                    
+                    const snap = await getDocs(collection(db, "master_microbes"));
+                    html += `<strong style="color:var(--primary-green);">ผลการค้นหาจุลินทรีย์ สำหรับ "${keyword}":</strong><ul style="margin-top:10px; padding:0; list-style: none;">`;
+                    let found = 0;
+                    snap.forEach(doc => {
+                        let d = doc.data();
+                        if(keywordMatch(d, keyword)) {
+                            found++;
+                            let detailHtml = '';
+                            const fieldDict = { common_name: 'ชื่อสามัญ', trade_name: 'ชื่อการค้า', form: 'ลักษณะเนื้อยา', type: 'ประเภท', usage_method: 'การใช้งาน', usage_details: 'รายละเอียดการใช้งาน', features: 'คุณสมบัติการกำจัด', effect_details: 'รายละเอียดการออกฤทธิ์', active_days: 'ระยะเวลาออกฤทธิ์ (วัน)', safe_days: 'ระยะเวลาปลอดภัย (วัน)' };
+                            for (const [key, value] of Object.entries(d)) {
+                                if (key === 'created_at') continue;
+                                let displayKey = fieldDict[key] || key;
+                                if(key === 'common_name') { detailHtml = `<b style="color:var(--primary-green); font-size:1.05rem;">${value || '-'}</b><br>` + detailHtml; }
+                                else { detailHtml += `<b>${displayKey}:</b> ${value || '-'}<br>`; }
+                            }
+                            html += `<li style="margin-bottom: 15px; background: #fff; padding: 15px; border-radius: 8px; border-left: 4px solid var(--primary-green); box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                                        <div style="color: #444; font-size: 0.95rem;">${detailHtml}</div>
+                                     </li>`;
+                        }
+                    });
+                    if(found===0) html += '<li>ไม่พบข้อมูลที่ตรงกันในฐานข้อมูล</li>';
+                    html += '</ul>';
+                }
+                
+                // --- 1.1.3 ค้นหาปุ๋ย (ค้นหาทั้งประวัติงานประจำวัน และข้อมูลหลัก โดยดึงแสดงแบบไดนามิกทุกฟิลด์) ---
+                else if(category === 'ปุ๋ย') {
+                    const keyword = formContent.querySelector('input[type="text"]').value.trim().toLowerCase();
+                    if(!keyword) { resultContainer.innerHTML = '<span style="color:red;">กรุณาระบุคำค้นหา</span>'; return; }
+                    
+                    html += `<strong style="color:var(--primary-green);">ผลการค้นหาข้อมูลปุ๋ย สำหรับ "${keyword}":</strong><ul style="margin-top:10px; padding:0; list-style: none;">`;
+                    let found = 0;
+                    
+                    // ส่วนที่ 1: ค้นหาประวัติการใส่ปุ๋ย 
+                    const routineSnap = await getDocs(collection(db, "routines_fertilizer"));
+                    routineSnap.forEach(doc => {
+                        let d = doc.data();
+                        if(keywordMatch(d, keyword)) {
+                            found++;
+                            let detailHtml = '';
+                            const fieldDict = { tree_name: 'ชื่อต้นไม้', method: 'วิธีการ', fertilizer_type: 'ประเภทปุ๋ย', formula: 'สูตรปุ๋ย', amount_g: 'ปริมาณ/น้ำหนัก (กรัม)' };
+                            
+                            for (const [key, value] of Object.entries(d)) {
+                                if (key === 'created_at' || key === 'date' || key === 'time') continue;
+                                let displayKey = fieldDict[key] || key;
+                                let displayVal = value;
+                                if(key === 'tree_name') displayVal = `<span style="color:var(--primary-green); font-weight:bold;">${value}</span>`;
+                                detailHtml += `<b>${displayKey}:</b> ${displayVal || '-'}<br>`;
+                            }
+
+                            html += `<li style="margin-bottom: 15px; background: #fff; padding: 15px; border-radius: 8px; border-left: 4px solid #4CAF50; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                                        <div style="color: #666; font-size: 0.85rem; border-bottom: 1px dashed #ccc; padding-bottom: 5px; margin-bottom: 8px;">
+                                            <i class="material-icons" style="font-size: 1rem; vertical-align: middle;">event</i> ประวัติการใช้งาน | วันที่: ${d.date || '-'} | เวลา: ${d.time || '-'}
+                                        </div>
+                                        <div style="color: #444; font-size: 0.95rem;">
+                                            ${detailHtml}
+                                        </div>
+                                     </li>`;
+                        }
+                    });
+
+                    // ส่วนที่ 2: ค้นหาข้อมูลสูตรปุ๋ยทั้งหมด (Master Data) โชว์ครบทุกฟิลด์แบบไดนามิก
+                    const masterSnap = await getDocs(collection(db, "master_fertilizers"));
+                    masterSnap.forEach(doc => {
+                        let d = doc.data();
+                        if(keywordMatch(d, keyword)) {
+                            found++;
+                            let detailHtml = '';
+                            const fieldDict = { method: 'วิธีการใส่ปุ๋ย', fertilizer_type: 'ประเภทปุ๋ย', formula: 'สูตรปุ๋ย', details: 'คุณสมบัติและรายละเอียด' };
+                            
+                            for (const [key, value] of Object.entries(d)) {
+                                if (key === 'created_at') continue;
+                                let displayKey = fieldDict[key] || key;
+                                let displayVal = value;
+                                if(key === 'formula') displayVal = `<span style="color:var(--info-color); font-weight:bold;">${value}</span>`;
+                                detailHtml += `<b>${displayKey}:</b> ${displayVal || '-'}<br>`;
+                            }
+
+                            html += `<li style="margin-bottom: 15px; background: #fff; padding: 15px; border-radius: 8px; border-left: 4px solid #2196F3; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                                        <div style="color: #1565C0; font-size: 0.85rem; border-bottom: 1px dashed #ccc; padding-bottom: 5px; margin-bottom: 8px;">
+                                            <i class="material-icons" style="font-size: 1rem; vertical-align: middle;">storage</i> ข้อมูลพื้นฐานหมวดปุ๋ย (Master Data)
+                                        </div>
+                                        <div style="color: #444; font-size: 0.95rem;">
+                                            ${detailHtml}
+                                        </div>
+                                     </li>`;
+                        }
+                    });
+
+                    if(found===0) html += '<li>ไม่พบข้อมูลปุ๋ย หรือ ต้นไม้ที่ค้นหา</li>';
+                    html += '</ul>';
+                }
+
+                // --- ค้นหาซ่อมบำรุง ---
+                else if(category === 'ซ่อมบำรุง') {
+                    const sysName = formContent.querySelector('select').value;
+                    if(!sysName) { resultContainer.innerHTML = '<span style="color:red;">กรุณาเลือกระบบ</span>'; return; }
+                    
+                    const q = query(collection(db, "routines_maintenance"), where("system", "==", sysName));
+                    const snap = await getDocs(q);
+                    html += `<strong style="color:var(--primary-green);">ประวัติซ่อมบำรุงระบบ: ${sysName}</strong><ul style="margin-top:10px; padding-left:20px; font-size:0.9rem; line-height:1.6;">`;
+                    let found = 0;
+                    snap.forEach(doc => {
+                        found++;
+                        let d = doc.data();
+                        html += `<li>[${d.date} ${d.time}] - ${d.details}</li>`;
+                    });
+                    if(found===0) html += '<li>ไม่มีประวัติการซ่อมบำรุงระบบนี้</li>';
+                    html += '</ul>';
+                }
+
+                resultContainer.innerHTML = html;
+
+            } catch(e) {
+                console.error(e);
+                resultContainer.innerHTML = '<span style="color:red;">เกิดข้อผิดพลาดในการดึงข้อมูล</span>';
+            }
+        };
+
+        // UI & SPA Logic
+        window.navigateTo = function(targetViewId) {
+            document.querySelectorAll('.view-section').forEach(view => view.classList.remove('active'));
+            const targetView = document.getElementById(targetViewId);
+            if (targetView) targetView.classList.add('active');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            
+            if(targetViewId === 'view-calendar') loadCalendarEvents();
+        };
+
+        window.toggleForm = function(formId, headerElement) {
+            const form = document.getElementById(formId);
+            const isShowing = form.style.display === 'block';
+            document.querySelectorAll('.form-content').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.form-card .card-header .material-icons').forEach(icon => icon.textContent = 'expand_more');
+
+            if (!isShowing) {
+                form.style.display = 'block';
+                headerElement.querySelector('.material-icons').textContent = 'expand_less';
+                window.setCurrentDateTime(form);
+            }
+        };
+
+        window.setCurrentDateTime = function(formContainer) {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${day}`;
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const timeStr = `${hours}:${minutes}`;
+
+            formContainer.querySelectorAll('.auto-date').forEach(el => { if(!el.value) el.value = dateStr; });
+            formContainer.querySelectorAll('.auto-time').forEach(el => { if(!el.value) el.value = timeStr; });
+        };
+
+        // ==========================================
+        // Backend (Firestore CRUD Mapping)
+        // ==========================================
+        window.saveData = async function(type, event) {
+            try {
+                let collectionName = "";
+                let payload = {};
+                let formDiv = event.currentTarget.closest('.form-content');
+
+                if (type === 'การให้น้ำ') {
+                    collectionName = "routines_water"; 
+                    payload = {
+                        date: formDiv.querySelector('.auto-date').value,
+                        time: formDiv.querySelector('.auto-time').value,
+                        details: formDiv.querySelector('textarea').value
+                    };
+                    if(!payload.details) { alert("กรุณาระบุรายละเอียดการให้น้ำ"); return; }
+                } 
+                else if (type === 'การใส่ปุ๋ย') {
+                    collectionName = "routines_fertilizer"; 
+                    const selects = formDiv.querySelectorAll('select');
+                    payload = {
+                        date: formDiv.querySelector('.auto-date').value,
+                        time: formDiv.querySelector('.auto-time').value,
+                        tree_name: selects[0].value,
+                        method: selects[1].value,
+                        fertilizer_type: selects[2].value,
+                        formula: selects[3].value,
+                        amount_g: formDiv.querySelectorAll('input[type="number"]')[0]?.value || 0
+                    };
+                }
+                else if (type === 'การป้องกันโรค') {
+                    collectionName = "routines_disease"; 
+                    const selects = formDiv.querySelectorAll('select');
+                    payload = {
+                        date: formDiv.querySelector('.auto-date').value,
+                        time: formDiv.querySelector('.auto-time').value,
+                        tree_name: selects[0].value,
+                        chem_type: selects[1].value,
+                        chem_common_name: selects[2].value,
+                        microbe_type: selects[3].value,
+                        microbe_common_name: selects[4].value
+                    };
+                }
+                else if (type === 'การดูแลและรักษาต้นไม้') {
+                    collectionName = "routines_care"; 
+                    payload = {
+                        date: formDiv.querySelector('.auto-date').value,
+                        time: formDiv.querySelector('.auto-time').value,
+                        tree_name: formDiv.querySelector('select').value,
+                        prune: { checked: document.getElementById('chk-prune').checked, detail: document.getElementById('chk-prune').nextElementSibling.querySelector('textarea').value },
+                        weed: { checked: document.getElementById('chk-weed').checked, detail: document.getElementById('chk-weed').nextElementSibling.querySelector('textarea').value },
+                        loosen: { checked: document.getElementById('chk-loosen').checked, detail: document.getElementById('chk-loosen').nextElementSibling.querySelector('textarea').value },
+                        repot: { checked: document.getElementById('chk-repot').checked, detail: document.getElementById('chk-repot').nextElementSibling.querySelector('textarea').value }
+                    };
+                }
+                else if (type === 'การประเมินลักษณะพืช') {
+                    collectionName = "routines_phenotyping"; 
+                    payload = {
+                        date: formDiv.querySelector('.auto-date').value,
+                        time: formDiv.querySelector('.auto-time').value,
+                        tree_name: formDiv.querySelector('select').value,
+                        details: formDiv.querySelector('textarea').value
+                    };
+                    if(!payload.details) { alert("กรุณาระบุรายละเอียดการประเมิน"); return; }
+                }
+                else if (type === 'การติดตามการเก็บเกี่ยว') {
+                    collectionName = "routines_harvest"; 
+                    payload = {
+                        date: formDiv.querySelectorAll('.auto-date')[0].value,
+                        time: formDiv.querySelector('.auto-time').value,
+                        tree_name: formDiv.querySelector('select').value,
+                        fruiting_date: formDiv.querySelectorAll('.auto-date')[1].value,
+                        duration_days: formDiv.querySelector('input[type="number"]').value || 0,
+                        notes: formDiv.querySelector('textarea').value
+                    };
+                }
+                else if (type === 'การซ่อมบำรุง') {
+                    collectionName = "routines_maintenance"; 
+                    payload = {
+                        date: formDiv.querySelector('.auto-date').value,
+                        time: formDiv.querySelector('.auto-time').value,
+                        system: formDiv.querySelector('select').value,
+                        details: formDiv.querySelector('textarea').value
+                    };
+                }
+                else if (type === 'สร้างกิจกรรม') {
+                    collectionName = "calendar_events"; 
+                    const inputs = formDiv.querySelectorAll('input');
+                    payload = {
+                        title: inputs[0].value,
+                        date: inputs[1].value,
+                        start_time: inputs[2].value,
+                        end_time: inputs[3].value,
+                        theme: formDiv.querySelector('select').value,
+                        recurring: document.getElementById('chk-recurring').checked,
+                        alert: document.getElementById('chk-alert').checked
+                    };
+                    if(!payload.title) { alert("กรุณาระบุชื่อกิจกรรม"); return; }
+                }
+                else if (type === 'ตั้งค่าต้นไม้') {
+                    collectionName = "master_trees";
+                    payload = {
+                        tree_type: formDiv.querySelector('select').value,
+                        tree_name: document.getElementById('setting-tree-name').value,
+                        age_years: formDiv.querySelectorAll('input[type="number"]')[0].value || 0,
+                        age_months: formDiv.querySelectorAll('input[type="number"]')[1].value || 0,
+                        age_days: formDiv.querySelectorAll('input[type="number"]')[2].value || 0,
+                        notes: formDiv.querySelector('textarea').value
+                    };
+                    if(!payload.tree_name) { alert("กรุณาระบุชื่อต้นไม้"); return; }
+                }
+                else if (type === 'ตั้งค่าหมวดปุ๋ย') {
+                    collectionName = "master_fertilizers";
+                    const selects = formDiv.querySelectorAll('select');
+                    payload = {
+                        method: selects[0].value,
+                        fertilizer_type: selects[1].value,
+                        formula: formDiv.querySelector('input[type="text"]').value,
+                        details: formDiv.querySelector('textarea').value
+                    };
+                }
+                else if (type === 'ตั้งค่าสารเคมี') {
+                    collectionName = "master_pesticides";
+                    const inputs = formDiv.querySelectorAll('input');
+                    const selects = formDiv.querySelectorAll('select');
+                    const textareas = formDiv.querySelectorAll('textarea');
+                    payload = {
+                        common_name: inputs[0].value,
+                        trade_name: inputs[1].value,
+                        concentration: inputs[2].value,
+                        form: selects[0].value,
+                        type: selects[1].value,
+                        usage_method: selects[2].value,
+                        usage_details: textareas[0].value,
+                        features: textareas[1].value,
+                        effect_type: selects[3].value,
+                        active_days: inputs[3].value || 0,
+                        safe_days: inputs[4].value || 0
+                    };
+                }
+                else if (type === 'ตั้งค่าจุลินทรีย์') {
+                    collectionName = "master_microbes";
+                    const inputs = formDiv.querySelectorAll('input');
+                    const selects = formDiv.querySelectorAll('select');
+                    const textareas = formDiv.querySelectorAll('textarea');
+                    payload = {
+                        common_name: inputs[0].value,
+                        trade_name: inputs[1].value,
+                        form: selects[0].value,
+                        type: selects[1].value,
+                        usage_method: selects[2].value,
+                        usage_details: textareas[0].value,
+                        features: textareas[1].value,
+                        effect_details: textareas[2].value,
+                        active_days: inputs[2].value || 0,
+                        safe_days: inputs[3].value || 0
+                    };
+                }
+
+                payload.created_at = serverTimestamp();
+
+                const submitBtn = event ? event.currentTarget : null;
+                let originalText = "";
+                if(submitBtn) {
+                    originalText = submitBtn.innerHTML;
+                    submitBtn.innerHTML = '<i class="material-icons">hourglass_empty</i> กำลังบันทึก...';
+                    submitBtn.disabled = true;
+                }
+
+                let editId = formDiv.dataset.editId;
+                if (editId) {
+                    await updateDoc(doc(db, collectionName, editId), payload);
+                    delete formDiv.dataset.editId;
+                    alert(`อัปเดตการแก้ไข [${type}] สำเร็จ!`);
+                } else {
+                    await addDoc(collection(db, collectionName), payload);
+                    alert(`บันทึก [${type}] สำเร็จ!\nข้อมูลถูกจัดเก็บลงฐานข้อมูล Collection: ${collectionName} เรียบร้อยแล้ว`);
+                }
+                
+                if(submitBtn) {
+                    if (type === 'สร้างกิจกรรม' || type === 'การติดตามการเก็บเกี่ยว') {
+                        let btnIcon = type === 'สร้างกิจกรรม' ? 'save' : 'save';
+                        let btnText = type === 'สร้างกิจกรรม' ? 'บันทึกกิจกรรม' : 'บันทึกข้อมูล';
+                        submitBtn.innerHTML = `<i class="material-icons">${btnIcon}</i> ${btnText}`;
+                        submitBtn.style.backgroundColor = 'var(--primary-green)'; 
+                    } else {
+                        submitBtn.innerHTML = originalText;
+                    }
+                    submitBtn.disabled = false;
+                }
+                
+                formDiv.querySelectorAll('textarea').forEach(el => el.value = '');
+                formDiv.querySelectorAll('input[type="text"]').forEach(el => el.value = '');
+                formDiv.querySelectorAll('input[type="number"]').forEach(el => el.value = '');
+                formDiv.querySelectorAll('input[type="checkbox"]').forEach(el => el.checked = false);
+
+                if(type.includes('ตั้งค่า')) loadMasterData();
+                if(type === 'สร้างกิจกรรม') loadCalendarEvents();
+
+            } catch (error) {
+                console.error(error);
+                alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล: " + error.message);
+                if(event && event.currentTarget) event.currentTarget.disabled = false;
+            }
+        };
+    </script>
+</body>
+</html>
