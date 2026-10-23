@@ -46,6 +46,8 @@ static const char *resource_path(firebase_resource_t resource)
         return CONFIG_N100_FIREBASE_COMMANDS_PATH;
     case FIREBASE_RESOURCE_CONFIG:
         return CONFIG_N100_FIREBASE_CONFIG_PATH;
+    case FIREBASE_RESOURCE_HISTORY:
+        return CONFIG_N100_FIREBASE_HISTORY_PATH;
     default:
         return NULL;
     }
@@ -56,6 +58,7 @@ static const firebase_resource_t s_firebase_resources[] = {
     FIREBASE_RESOURCE_STATUS,
     FIREBASE_RESOURCE_COMMANDS,
     FIREBASE_RESOURCE_CONFIG,
+    FIREBASE_RESOURCE_HISTORY,
 };
 
 static const char *resource_name(firebase_resource_t resource)
@@ -69,6 +72,8 @@ static const char *resource_name(firebase_resource_t resource)
         return "commands";
     case FIREBASE_RESOURCE_CONFIG:
         return "config";
+    case FIREBASE_RESOURCE_HISTORY:
+        return "history";
     default:
         return "unknown";
     }
@@ -328,7 +333,7 @@ static esp_err_t perform_request(firebase_resource_t resource,
         ESP_LOGE(TAG, "Firebase auth token is not configured");
         return ESP_ERR_INVALID_STATE;
     }
-    if ((method == HTTP_METHOD_PATCH || method == HTTP_METHOD_PUT) &&
+    if (method != HTTP_METHOD_GET &&
         (body == NULL || body_length > INT32_MAX)) {
         return ESP_ERR_INVALID_ARG;
     }
@@ -471,7 +476,8 @@ static esp_err_t write_document(firebase_resource_t resource,
                                 const cJSON *document)
 {
     if (resource_path(resource) == NULL || document == NULL ||
-        (method != HTTP_METHOD_PATCH && method != HTTP_METHOD_PUT)) {
+        (method != HTTP_METHOD_PATCH && method != HTTP_METHOD_PUT &&
+         method != HTTP_METHOD_POST)) {
         return ESP_ERR_INVALID_ARG;
     }
 
@@ -494,6 +500,11 @@ esp_err_t firebase_client_patch(firebase_resource_t resource, const cJSON *docum
 esp_err_t firebase_client_put(firebase_resource_t resource, const cJSON *document)
 {
     return write_document(resource, HTTP_METHOD_PUT, document);
+}
+
+esp_err_t firebase_client_post(firebase_resource_t resource, const cJSON *document)
+{
+    return write_document(resource, HTTP_METHOD_POST, document);
 }
 
 esp_err_t firebase_client_set_power_mode(firebase_power_mode_t mode)

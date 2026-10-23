@@ -1,0 +1,923 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f3f7f6">
+  <meta name="description" content="Node100 Irrigation dashboard and controls">
+  <title>Node100 Irrigation | Node101</title>
+  <script defer src="/__/firebase/13.1.0/firebase-app-compat.js"></script>
+  <script defer src="/__/firebase/13.1.0/firebase-auth-compat.js"></script>
+  <script defer src="/__/firebase/13.1.0/firebase-database-compat.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f3f7f6;
+      --surface: #fff;
+      --ink: #1a2e29;
+      --muted: #71807b;
+      --line: #e5ece9;
+      --green: #168366;
+      --green-dark: #0f674f;
+      --green-soft: #e8f5ef;
+      --blue: #3d7bc0;
+      --blue-soft: #eaf2fc;
+      --purple: #7966bb;
+      --purple-soft: #f0edfb;
+      --amber: #b16e17;
+      --amber-soft: #fff3dc;
+      --red: #c64d49;
+      --red-soft: #fff0ee;
+      --shadow: 0 8px 28px rgba(30, 65, 53, .055);
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+    }
+    * { box-sizing: border-box; }
+    body { min-width: 320px; margin: 0; background: var(--page); color: var(--ink); }
+    button, input, select { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid rgba(22,131,102,.25); outline-offset: 2px; }
+    .topbar {
+      position: sticky; z-index: 5; top: 0; display: flex; align-items: center;
+      flex-wrap: wrap; justify-content: space-between; gap: 10px 16px; padding: calc(10px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 12px max(16px, env(safe-area-inset-left));
+      border-bottom: 1px solid rgba(224,234,230,.92); background: rgba(250,252,251,.94);
+      -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+    }
+    .brand { min-width: 0; }
+    .brand h1 { margin: 0; font-size: clamp(19px,4.5vw,24px); font-weight: 760; letter-spacing: -.045em; line-height: 1.1; }
+    .brand p { display: flex; align-items: center; gap: 7px; margin: 6px 0 0; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+    .clock-dot,.dot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: #aab6b2; }
+    .clock-dot.live,.dot.live { background: #25a475; box-shadow: 0 0 0 3px rgba(37,164,117,.12); }
+    .board-links { display: grid; gap: 5px; flex: 0 0 auto; }
+    .link-state { display: flex; align-items: center; gap: 7px; color: var(--red); font-size: 10px; font-weight: 700; white-space: nowrap; }
+    .link-state.connected { color: var(--green); }
+    .link-state .dot { width: 6px; height: 6px; background: var(--red); }
+    .link-state.connected .dot { background: #25a475; }
+    .account-control { display: flex; align-items: center; gap: 8px; }
+    .account-control:not([hidden]) { flex-basis: 100%; justify-content: flex-end; }
+    .account-email { max-width: 170px; overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+    .account-control[hidden] { display: none; }
+    .auth-gate { min-height: calc(100svh - 68px); display: grid; place-items: center; padding: 24px 16px calc(30px + env(safe-area-inset-bottom)); }
+    .auth-gate[hidden] { display: none; }
+    .auth-card { width: min(100%, 410px); padding: 22px; border: 1px solid var(--line); border-radius: 22px; background: var(--surface); box-shadow: var(--shadow); }
+    .auth-card h2 { font-size: 21px; }
+    .auth-card > p { margin: 8px 0 18px; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .auth-card .field label { font-size: 11px; }
+    .auth-card .field input { min-height: 46px; font-size: 14px; }
+    .auth-error { min-height: 18px; margin: 0 0 10px; color: var(--red); font-size: 11px; line-height: 1.5; }
+    .auth-submit { width: 100%; min-height: 46px; font-size: 13px; }
+    .auth-submit:disabled { cursor: wait; }
+    main { width: min(1180px,100%); margin: 0 auto; padding: 20px 15px calc(30px + env(safe-area-inset-bottom)); }
+    main[hidden] { display: none; }
+    .page-intro { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 10px; margin: 3px 2px 15px; }
+    .eyebrow { margin: 0 0 5px; color: var(--green); font-size: 10px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+    h2 { margin: 0; font-size: 24px; letter-spacing: -.05em; }
+    .last-update { color: var(--muted); font-size: 10px; }
+    .panel { margin-top: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 21px; background: var(--surface); box-shadow: var(--shadow); }
+    .panel-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .heading-icon { display: grid; width: 36px; height: 36px; flex: 0 0 auto; place-items: center; border-radius: 12px; color: var(--green); background: var(--green-soft); }
+    .heading-icon.blue { color: var(--blue); background: var(--blue-soft); }
+    .heading-icon.purple { color: var(--purple); background: var(--purple-soft); }
+    .heading-icon.amber { color: var(--amber); background: var(--amber-soft); }
+    .heading-copy { min-width: 0; flex: 1; }
+    .heading-copy h3 { margin: 0; font-size: 15px; letter-spacing: -.025em; }
+    .heading-copy p { margin: 3px 0 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
+    .grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+    .metric { min-width: 0; padding: 13px; border: 1px solid var(--line); border-radius: 16px; background: #fcfdfd; }
+    .metric-head { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 10px; font-weight: 650; }
+    .metric-symbol { display: grid; width: 29px; height: 29px; flex: 0 0 auto; place-items: center; border-radius: 10px; background: var(--green-soft); color: var(--green); }
+    .metric-symbol.blue { background: var(--blue-soft); color: var(--blue); }
+    .metric-symbol.purple { background: var(--purple-soft); color: var(--purple); }
+    .metric-value { display: flex; align-items: baseline; gap: 4px; margin-top: 9px; }
+    .metric-value strong { overflow: hidden; font-size: 25px; letter-spacing: -.06em; text-overflow: ellipsis; }
+    .metric-value span { color: var(--muted); font-size: 10px; }
+    .flow-grid,.zone-grid,.chart-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    .flow-card,.zone-card,.chart-card { min-width: 0; padding: 13px; border: 1px solid var(--line); border-radius: 16px; background: #fcfdfd; }
+    .flow-title,.zone-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .flow-title h4,.zone-title h4 { margin: 0; font-size: 12px; }
+    .flow-rate { color: var(--blue); font-size: 11px; font-weight: 750; }
+    .flow-stats { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; margin: 11px 0; }
+    .flow-stat { padding: 9px; border-radius: 12px; background: #f3f7f6; }
+    .flow-stat span { display: block; color: var(--muted); font-size: 9px; }
+    .flow-stat strong { display: block; margin-top: 4px; font-size: 14px; font-variant-numeric: tabular-nums; }
+    .leak-state { display: inline-flex; align-items: center; gap: 6px; min-height: 26px; padding: 4px 8px; border-radius: 999px; background: var(--green-soft); color: var(--green-dark); font-size: 9px; font-weight: 750; }
+    .leak-state.alert { animation: leak-flash .9s steps(2,end) infinite; background: var(--red); color: white; }
+    .leak-state.unknown { background: #edf1ef; color: var(--muted); }
+    @keyframes leak-flash { 50% { opacity: .4; } }
+    .button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 42px; padding: 0 12px; border: 0; border-radius: 12px; font-size: 11px; font-weight: 750; cursor: pointer; transition: transform .16s ease, filter .16s ease; }
+    .button:active { transform: scale(.97); }
+    .button:hover { filter: brightness(.97); }
+    .button.green { background: var(--green); color: white; }
+    .button.blue { background: var(--blue); color: white; }
+    .button.red { background: var(--red); color: white; }
+    .button.soft { background: #edf3f0; color: #43554e; }
+    .button.amber { background: var(--amber-soft); color: var(--amber); }
+    .button.small { min-height: 34px; padding: 0 10px; border-radius: 10px; font-size: 10px; }
+    .button:disabled { opacity: .5; cursor: not-allowed; }
+    .inline-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .settings-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    .subsection { padding: 13px; border: 1px solid var(--line); border-radius: 16px; background: #fcfdfd; }
+    .subsection h4 { margin: 0 0 10px; font-size: 12px; }
+    .field { display: grid; gap: 6px; margin-bottom: 10px; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { color: #4e5f59; font-size: 10px; font-weight: 700; }
+    .field input,.field select { width: 100%; min-height: 40px; padding: 0 10px; border: 1px solid var(--line); border-radius: 10px; background: white; color: var(--ink); font-size: 11px; }
+    .timer-list { display: grid; gap: 7px; }
+    .timer-row { display: grid; grid-template-columns: 1fr 1fr 36px; align-items: center; gap: 7px; }
+    .timer-row input { min-width: 0; min-height: 38px; padding: 0 7px; border: 1px solid var(--line); border-radius: 10px; background: #fff; font-size: 11px; }
+    .remove-timer { width: 36px; height: 36px; border: 0; border-radius: 10px; background: var(--red-soft); color: var(--red); cursor: pointer; }
+    .timer-labels { display: grid; grid-template-columns: 1fr 1fr 36px; gap: 7px; margin-bottom: 5px; color: var(--muted); font-size: 9px; }
+    .check-row { display: flex; align-items: center; gap: 8px; color: #4e5f59; font-size: 10px; line-height: 1.4; }
+    .check-row input { width: 18px; height: 18px; accent-color: var(--green); }
+    .mode-strip { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
+    .mode-badge { padding: 5px 8px; border-radius: 999px; background: #eef2f0; color: #5f6f69; font-size: 9px; font-weight: 700; }
+    .mode-badge.auto { background: var(--blue-soft); color: var(--blue); }
+    .mode-badge.manual { background: var(--green-soft); color: var(--green-dark); }
+    .mode-badge.override { background: var(--amber-soft); color: var(--amber); }
+    .power-button { display: grid; width: 46px; height: 46px; place-items: center; border: 0; border-radius: 15px; background: var(--red); color: white; box-shadow: 0 5px 15px rgba(198,77,73,.16); cursor: pointer; transition: transform .17s ease, filter .17s ease; }
+    .power-button.on { background: var(--green); box-shadow: 0 5px 15px rgba(22,131,102,.18); }
+    .power-button:active { transform: scale(.94); }
+    .power-button:disabled { opacity: .45; cursor: not-allowed; }
+    .zone-card { padding: 14px; }
+    .zone-title { align-items: flex-start; }
+    .zone-title p { margin: 4px 0 0; color: var(--muted); font-size: 9px; }
+    .zone-footer { margin-top: 9px; }
+    .pump-row { display: flex; align-items: center; gap: 11px; padding: 12px; border: 1px solid var(--line); border-radius: 15px; background: #fcfdfd; }
+    .pump-copy { flex: 1; }
+    .pump-copy strong { display: block; font-size: 12px; }
+    .pump-copy span { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; }
+    .table-info { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; margin-bottom: 12px; }
+    .info-tile { padding: 10px; border-radius: 12px; background: #f3f7f6; }
+    .info-tile span { display: block; color: var(--muted); font-size: 9px; }
+    .info-tile strong { display: block; margin-top: 4px; font-size: 11px; overflow-wrap: anywhere; }
+    .stats-controls { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    .chart-card { padding: 12px; }
+    .chart-card h4 { margin: 0; font-size: 11px; }
+    .chart-card p { margin: 3px 0 8px; color: var(--muted); font-size: 9px; }
+    .chart-wrap { position: relative; height: 180px; }
+    canvas { display: block; width: 100%; height: 100%; }
+    .notice { margin: 13px 2px 0; color: var(--muted); font-size: 9px; line-height: 1.55; }
+    .toast { position: fixed; z-index: 20; right: 15px; bottom: calc(15px + env(safe-area-inset-bottom)); left: 15px; width: max-content; max-width: calc(100% - 30px); margin: auto; padding: 12px 15px; border-radius: 13px; background: #20372e; color: white; box-shadow: var(--shadow); font-size: 11px; }
+    .toast[hidden] { display:none; }
+    @media (min-width: 620px) {
+      .topbar { padding-right: 26px; padding-left: 26px; }
+      .account-control:not([hidden]) { flex-basis: auto; }
+      main { padding-right: 24px; padding-left: 24px; }
+      .grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+      .flow-grid,.zone-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .settings-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .stats-controls { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .chart-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .table-info { grid-template-columns: repeat(4,minmax(0,1fr)); }
+    }
+    @media (min-width: 960px) {
+      .topbar { padding-right: max(42px,calc((100vw - 1100px)/2)); padding-left: max(42px,calc((100vw - 1100px)/2)); }
+      main { padding-top: 26px; }
+      .flow-grid,.zone-grid { grid-template-columns: repeat(4,minmax(0,1fr)); }
+      .settings-grid { grid-template-columns: 1fr 1.3fr; }
+      .stats-controls { grid-template-columns: repeat(4,minmax(0,1fr)); }
+      .panel { padding: 19px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration:.01ms!important; transition-duration:.01ms!important; } }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1>Node100 Irrigation</h1>
+      <p><span id="clock-dot" class="clock-dot"></span><time id="device-clock">รอเวลา DS3231…</time></p>
+    </div>
+    <div class="board-links" aria-live="polite">
+      <div id="cloud-link" class="link-state"><span class="dot"></span><span>Firebase Cloud Sync Disconnected</span></div>
+      <div id="board-link" class="link-state"><span class="dot"></span><span>ESP32-S3 Board Offline</span></div>
+    </div>
+    <div id="account-control" class="account-control" hidden>
+      <span id="account-email" class="account-email"></span>
+      <button id="sign-out" class="button soft small" type="button">ออกจากระบบ</button>
+    </div>
+  </header>
+
+  <section id="auth-gate" class="auth-gate" aria-labelledby="auth-title">
+    <form id="sign-in-form" class="auth-card">
+      <h2 id="auth-title">เข้าสู่ระบบ</h2>
+      <p>ลงชื่อเข้าใช้ด้วยบัญชีที่ได้รับอนุญาต เพื่อเชื่อมต่อข้อมูลและควบคุมระบบชลประทาน</p>
+      <div class="field">
+        <label for="auth-email">อีเมล</label>
+        <input id="auth-email" name="email" type="email" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="auth-password">รหัสผ่าน</label>
+        <input id="auth-password" name="password" type="password" autocomplete="current-password" required>
+      </div>
+      <p id="auth-error" class="auth-error" role="alert" aria-live="polite"></p>
+      <button id="sign-in" class="button green auth-submit" type="submit">เข้าสู่ระบบ</button>
+    </form>
+  </section>
+
+  <main id="main" hidden>
+    <div class="page-intro">
+      <div><p class="eyebrow">Node100 • Smart Garden</p><h2>Irrigation Dashboard</h2></div>
+      <span id="last-update" class="last-update">รอข้อมูลจากอุปกรณ์</span>
+    </div>
+
+    <section class="panel" aria-labelledby="sleep-title">
+      <div class="panel-heading">
+        <span class="heading-icon purple" aria-hidden="true">☾</span>
+        <div class="heading-copy"><h3 id="sleep-title">Deep Sleep System</h3><p>ตั้งโหมดพลังงานและช่วงเวลาหลับ/ตื่นซ้ำทุกวัน (เวลาไทย)</p></div>
+      </div>
+      <div class="settings-grid">
+        <div class="subsection">
+          <h4>สถานะและโหมดปัจจุบัน</h4>
+          <div id="power-mode-display" class="mode-badge">กำลังอ่านสถานะ…</div>
+          <div class="field" style="margin-top:10px">
+            <label for="power-mode">โหมดพลังงาน</label>
+            <select id="power-mode">
+              <option value="always_on">Always-On • ทำงานตลอดเวลา</option>
+              <option value="deep_sleep">Deep Sleep • ตั้งเวลาหลับลึก</option>
+            </select>
+          </div>
+          <p id="sleep-current-window" class="notice">ช่วงเวลาปัจจุบัน: ยังไม่มีข้อมูลตาราง</p>
+        </div>
+        <div class="subsection">
+          <h4>Multi Timer • เวลาหลับและเวลาตื่น</h4>
+          <div class="timer-labels"><span>เริ่มหลับ</span><span>เวลาตื่น</span><span></span></div>
+          <div id="sleep-timers" class="timer-list"></div>
+          <div class="inline-actions" style="margin-top:10px">
+            <button id="add-sleep-timer" class="button soft small" type="button">＋ เพิ่มเวลา</button>
+            <button id="save-sleep-settings" class="button green small" type="button">บันทึกการตั้งค่า</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="sensor-title">
+      <div class="panel-heading">
+        <span class="heading-icon blue" aria-hidden="true">⌁</span>
+        <div class="heading-copy"><h3 id="sensor-title">Sensor Dashboard</h3><p>ข้อมูลล่าสุดจาก DS3231, SHT40, Soil Moisture และ YF-S201B</p></div>
+      </div>
+      <div class="grid">
+        <article class="metric"><div class="metric-head"><span class="metric-symbol"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M14 14.8V5.5a3 3 0 0 0-6 0v9.3a5 5 0 1 0 6 0Z" stroke="currentColor" stroke-width="1.7"/><path d="M11 12V6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>Temperature</div><div class="metric-value"><strong id="temperature">—</strong><span>°C</span></div></article>
+        <article class="metric"><div class="metric-head"><span class="metric-symbol blue">◌</span>Humidity</div><div class="metric-value"><strong id="humidity">—</strong><span>% RH</span></div></article>
+        <article class="metric"><div class="metric-head"><span class="metric-symbol purple">♨</span>Soil Moisture</div><div class="metric-value"><strong id="soil">—</strong><span>%</span></div></article>
+      </div>
+      <div class="panel-heading" style="margin:18px 0 10px">
+        <div class="heading-copy"><h3>Water Flow Sensor</h3><p>ปริมาณต่อรอบ / ปริมาณสะสมจากตัวนับของบอร์ด</p></div>
+        <button id="reset-totals" class="button soft small" type="button">↺ Reset สะสม</button>
+      </div>
+      <div id="flow-grid" class="flow-grid"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="control-title">
+      <div class="panel-heading">
+        <span class="heading-icon" aria-hidden="true">⏻</span>
+        <div class="heading-copy"><h3 id="control-title">Controlled System</h3><p>สถานะรีเลย์และโหมดของ Zone • ปั๊มหลักทำงานตามสถานะวาล์ว</p></div>
+      </div>
+      <div id="zone-grid" class="zone-grid"></div>
+      <div class="pump-row" style="margin-top:10px">
+        <button id="pump-power" class="power-button" type="button" aria-label="สถานะปั๊มหลัก" disabled><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M12 3v9m6.36-6.36a9 9 0 1 1-12.72 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+        <div class="pump-copy"><strong>Main Pump Relay</strong><span id="pump-state">รอสถานะจากบอร์ด</span></div>
+        <span id="pump-flow" class="flow-rate">— L/min</span>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="logic-title">
+      <div class="panel-heading">
+        <span class="heading-icon amber" aria-hidden="true">◷</span>
+        <div class="heading-copy"><h3 id="logic-title">Logic &amp; Multi-Timer Setting</h3><p>เลือก Manual Only หรือ Timer Only • ตั้งเวลาเปิด/ปิดซ้ำทุกวัน</p></div>
+      </div>
+      <div id="logic-grid" class="zone-grid"></div>
+      <div class="inline-actions" style="margin-top:12px">
+        <button id="save-logic" class="button blue" type="button">บันทึกการทำงานทั้งหมด</button>
+        <span class="notice">ช่วงเวลาข้ามเที่ยงคืนได้ • ต้องเชื่อม Firebase และบอร์ดจึงจะมีผลกับรีเลย์</span>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="statistics-title">
+      <div class="panel-heading">
+        <span class="heading-icon blue" aria-hidden="true">▥</span>
+        <div class="heading-copy"><h3 id="statistics-title">Statistics</h3><p>บันทึกภาพรวมลง Firebase เพื่อดูร่วมกันทุกอุปกรณ์</p></div>
+      </div>
+      <div class="table-info">
+        <div class="info-tile"><span>ข้อมูลแรก</span><strong id="first-record">—</strong></div>
+        <div class="info-tile"><span>ข้อมูลล่าสุด</span><strong id="last-record">—</strong></div>
+        <div class="info-tile"><span>จำนวนข้อมูลทั้งหมด</span><strong id="record-count">0</strong></div>
+        <div class="info-tile"><span>สถานะบันทึก</span><strong id="recording-state">หยุดบันทึก</strong></div>
+      </div>
+      <div class="stats-controls">
+        <div class="field"><label for="sample-interval">ความถี่บันทึก (นาที)</label><input id="sample-interval" type="number" min="1" max="1440" step="1" value="5" inputmode="numeric"></div>
+        <div class="field"><label for="chart-count">จำนวนข้อมูลในกราฟ</label><select id="chart-count"><option value="10">10 รายการ</option><option value="30">30 รายการ</option><option value="50">50 รายการ</option><option value="75">75 รายการ</option><option value="100" selected>100 รายการ</option></select></div>
+        <div class="inline-actions" style="align-self:end"><button id="toggle-recording" class="button red" type="button">เริ่มเก็บข้อมูล</button><button id="save-stat-settings" class="button blue" type="button">บันทึกความถี่</button></div>
+        <div class="inline-actions" style="align-self:end"><button id="export-csv" class="button soft" type="button">⇩ Export CSV</button><button id="clear-history" class="button red" type="button">ล้างข้อมูล</button></div>
+      </div>
+      <div class="chart-grid" style="margin-top:14px">
+        <article class="chart-card"><h4>Environment</h4><p>Temperature °C • Humidity %</p><div class="chart-wrap"><canvas id="chart-environment" aria-label="กราฟอุณหภูมิและความชื้น"></canvas></div></article>
+        <article class="chart-card"><h4>Soil Moisture</h4><p>ความชื้นดิน (%)</p><div class="chart-wrap"><canvas id="chart-soil" aria-label="กราฟความชื้นดิน"></canvas></div></article>
+        <article class="chart-card"><h4>Water per session</h4><p>ปริมาณน้ำต่อรอบ (ลิตร) แยกตาม Zone</p><div class="chart-wrap"><canvas id="chart-session-water" aria-label="กราฟปริมาณน้ำต่อรอบ"></canvas></div></article>
+        <article class="chart-card"><h4>Accumulated water &amp; relay state</h4><p>น้ำสะสม (ลิตร) และสถานะวาล์ว/ปั๊ม (0=ปิด, 1=เปิด)</p><div class="chart-wrap"><canvas id="chart-totals" aria-label="กราฟน้ำสะสมและสถานะรีเลย์"></canvas></div></article>
+      </div>
+      <p class="notice">การล้างสถิติจะลบข้อมูลทั้งหมดใน node100/history สำหรับทุกผู้ใช้ และต้องยืนยันก่อนดำเนินการ • สถานะรีเลย์เป็นสถานะซอฟต์แวร์ ไม่มี feedback ยืนยันตำแหน่งวาล์วจริง</p>
+    </section>
+  </main>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const firebaseConfig = {
+        apiKey: "AIzaSyCNOVy-CC45WMs1Fp5BXZG6nVX9gGSqdBQ",
+        authDomain: "smartgarden-v1-c83ce.firebaseapp.com",
+        databaseURL: "https://smartgarden-v1-c83ce-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "smartgarden-v1-c83ce",
+        storageBucket: "smartgarden-v1-c83ce.firebasestorage.app",
+        messagingSenderId: "625774766209",
+        appId: "1:625774766209:web:3c6319649e96f2aba6c580"
+      };
+      const $ = (id) => document.getElementById(id);
+      const zones = ["zone_a", "zone_b", "zone_c"];
+      const flowNames = ["zone_a", "zone_b", "zone_c", "main_pump"];
+      const flowTitles = { zone_a: "Zone A", zone_b: "Zone B", zone_c: "Zone C", main_pump: "Main pump" };
+      const state = {
+        db: null, connected: false, telemetry: null, status: null, commands: null, config: {},
+        history: [], totals: {}, boardOnline: false, lastRtcMs: null,
+        serverTimeOffset: 0, lastBoardHeartbeatMs: null, auth: null
+      };
+      let toastTimer;
+
+      function toast(message) {
+        $("toast").textContent = message;
+        $("toast").hidden = false;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => { $("toast").hidden = true; }, 3600);
+      }
+      function setCloud(connected) {
+        state.connected = connected;
+        const element = $("cloud-link");
+        element.classList.toggle("connected", connected);
+        element.querySelector("span:last-child").textContent = connected ? "Firebase Cloud Sync Connected" : "Firebase Cloud Sync Disconnected";
+      }
+      function setBoard(online) {
+        state.boardOnline = online;
+        const element = $("board-link");
+        element.classList.toggle("connected", online);
+        element.querySelector("span:last-child").textContent = online ? "ESP32-S3 Board Online" : "ESP32-S3 Board Offline";
+        $("clock-dot").classList.toggle("live", online);
+        renderControls();
+      }
+      function number(value, digits = 2) {
+        return typeof value === "number" && Number.isFinite(value) ? value.toFixed(digits) : "—";
+      }
+      function parseRtc(data) {
+        if (!data || typeof data.rtc_date !== "string" || typeof data.rtc_time !== "string") return null;
+        const stamp = Date.parse(data.rtc_date + "T" + data.rtc_time + "+07:00");
+        return Number.isFinite(stamp) ? stamp : null;
+      }
+      function renderClock() {
+        if (state.lastRtcMs === null) return;
+        $("device-clock").textContent = new Intl.DateTimeFormat("th-TH-u-ca-buddhist", {
+          weekday: "long", day: "numeric", month: "long", year: "numeric",
+          hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "Asia/Bangkok"
+        }).format(new Date(state.lastRtcMs));
+      }
+      function updateTelemetry(data) {
+        state.telemetry = data && typeof data === "object" ? data : null;
+        if (!state.telemetry) { setBoard(false); return; }
+        const rtcMs = parseRtc(state.telemetry);
+        if (rtcMs !== null) {
+          state.lastRtcMs = rtcMs;
+          renderClock();
+          $("last-update").textContent =
+            "อัปเดตจาก DS3231 " + new Intl.DateTimeFormat("th-TH", {
+              hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "Asia/Bangkok"
+            }).format(new Date(state.lastRtcMs));
+        }
+        const heartbeat = Number(state.telemetry.server_timestamp_ms);
+        state.lastBoardHeartbeatMs = Number.isFinite(heartbeat) ? heartbeat : null;
+        const age = state.lastBoardHeartbeatMs === null
+          ? Infinity
+          : Date.now() + state.serverTimeOffset - state.lastBoardHeartbeatMs;
+        setBoard(age >= -30000 && age < 20000);
+        renderSleepSummary();
+        $("temperature").textContent = number(state.telemetry.temperature_c, 1);
+        $("humidity").textContent = number(state.telemetry.humidity_percent, 1);
+        $("soil").textContent = number(state.telemetry.soil_moisture_percent, 1);
+        $("pump-flow").textContent = number(state.telemetry.flow_main_pump_l_min, 2) + " L/min";
+        state.totals = state.telemetry.flow_totals_liters || state.totals;
+        renderFlows();
+        renderControls();
+      }
+      function makeFlowCards() {
+        const host = $("flow-grid");
+        host.replaceChildren();
+        for (const name of flowNames) {
+          const card = document.createElement("article");
+          card.className = "flow-card";
+          card.innerHTML = '<div class="flow-title"><h4></h4><span class="flow-rate"></span></div><div class="flow-stats"><div class="flow-stat"><span>ปริมาณต่อรอบ</span><strong data-session>— L</strong></div><div class="flow-stat"><span>ปริมาณสะสม</span><strong data-total>— L</strong></div></div><span class="leak-state unknown" data-leak>รอข้อมูลการไหล</span>';
+          card.querySelector("h4").textContent = flowTitles[name];
+          card.querySelector(".flow-rate").id = "rate-" + name;
+          card.querySelector("[data-session]").id = "session-" + name;
+          card.querySelector("[data-total]").id = "total-" + name;
+          card.querySelector("[data-leak]").id = "leak-" + name;
+          host.append(card);
+        }
+      }
+      function renderFlows() {
+        const data = state.telemetry || {};
+        for (const name of flowNames) {
+          $("rate-" + name).textContent = number(data["flow_" + name + "_l_min"], 2) + " L/min";
+          $("session-" + name).textContent = number(data["flow_" + name + "_session_liters"], 3) + " L";
+          const total = state.totals[name] ?? data["flow_" + name + "_total_liters"];
+          $("total-" + name).textContent = number(total, 3) + " L";
+          const leak = $("leak-" + name);
+          const key = "leak_" + name;
+          const detected = data[key];
+          leak.classList.toggle("alert", detected === true);
+          leak.classList.toggle("unknown", typeof detected !== "boolean");
+          leak.textContent = detected === true ? "⚠ พบการไหลหลังปิดวาล์ว" :
+            detected === false ? "✓ ไม่พบการรั่วไหล" : "รอข้อมูลการไหล";
+        }
+      }
+      function addTimerRow(container, openAt = "08:00", closeAt = "08:30") {
+        if (container.querySelectorAll(".timer-row").length >= 8) {
+          toast("ตั้งช่วงเวลาได้สูงสุด 8 ช่วงต่อ Zone");
+          return;
+        }
+        const row = document.createElement("div");
+        row.className = "timer-row";
+        const start = document.createElement("input");
+        start.type = "time"; start.value = openAt; start.setAttribute("aria-label", "เวลาเปิด");
+        const end = document.createElement("input");
+        end.type = "time"; end.value = closeAt; end.setAttribute("aria-label", "เวลาปิด");
+        const remove = document.createElement("button");
+        remove.type = "button"; remove.className = "remove-timer"; remove.textContent = "×"; remove.setAttribute("aria-label", "ลบช่วงเวลา");
+        remove.addEventListener("click", () => row.remove());
+        row.append(start, end, remove); container.append(row);
+      }
+      function addSleepRow(sleepAt = "22:00", wakeAt = "06:00") {
+        const host = $("sleep-timers");
+        if (host.querySelectorAll(".timer-row").length >= 8) {
+          toast("ตั้งช่วง Deep Sleep ได้สูงสุด 8 ช่วง");
+          return;
+        }
+        const row = document.createElement("div");
+        row.className = "timer-row";
+        const sleep = document.createElement("input"); sleep.type = "time"; sleep.value = sleepAt; sleep.setAttribute("aria-label", "เวลาเริ่มหลับ");
+        const wake = document.createElement("input"); wake.type = "time"; wake.value = wakeAt; wake.setAttribute("aria-label", "เวลาตื่น");
+        const remove = document.createElement("button"); remove.type = "button"; remove.className = "remove-timer"; remove.textContent = "×"; remove.setAttribute("aria-label", "ลบช่วงเวลาหลับ");
+        remove.addEventListener("click", () => row.remove());
+        row.append(sleep, wake, remove); host.append(row);
+      }
+      function renderConfig(config) {
+        state.config = config && typeof config === "object" ? config : {};
+        const sleepMode = state.config.system_power_mode === "deep_sleep";
+        $("power-mode").value = sleepMode ? "deep_sleep" : "always_on";
+        renderSleepSummary();
+        const sleepHost = $("sleep-timers");
+        sleepHost.replaceChildren();
+        const sleeps = Array.isArray(state.config.deep_sleep_timers) ? state.config.deep_sleep_timers : [];
+        if (sleeps.length) sleeps.forEach((item) => addSleepRow(item.sleep_at || "22:00", item.wake_at || "06:00"));
+        else addSleepRow();
+        $("sample-interval").value = Number.isInteger(state.config.statistics_interval_minutes) ? state.config.statistics_interval_minutes : 5;
+        $("toggle-recording").textContent = state.config.statistics_enabled === true ? "หยุดเก็บข้อมูล" : "เริ่มเก็บข้อมูล";
+        $("toggle-recording").classList.toggle("green", state.config.statistics_enabled === true);
+        $("toggle-recording").classList.toggle("red", state.config.statistics_enabled !== true);
+        const logicHost = $("logic-grid");
+        logicHost.replaceChildren();
+        const zoneConfig = state.config.zone_control || {};
+        for (const zone of zones) {
+          const settings = zoneConfig[zone] || {};
+          const card = document.createElement("article");
+          card.className = "subsection";
+          const heading = document.createElement("h4"); heading.textContent = flowTitles[zone];
+          const modeField = document.createElement("div"); modeField.className = "field";
+          const label = document.createElement("label"); label.textContent = "โหมดการทำงาน";
+          const select = document.createElement("select"); select.dataset.zoneMode = zone;
+          select.innerHTML = '<option value="timer_only">Timer Only</option><option value="manual_only">Manual Only</option>';
+          select.value = settings.mode === "timer_only" ? "timer_only" : "manual_only";
+          modeField.append(label, select);
+          const overwriteLabel = document.createElement("label"); overwriteLabel.className = "check-row";
+          const checkbox = document.createElement("input"); checkbox.type = "checkbox"; checkbox.dataset.overwrite = zone; checkbox.checked = settings.manual_overwrite_allowed === true;
+          const checkboxText = document.createElement("span"); checkboxText.textContent = "อนุญาต Manual Overwrite ในโหมด Timer Only";
+          overwriteLabel.append(checkbox, checkboxText);
+          const timerBlock = document.createElement("div");
+          const timerTitle = document.createElement("div"); timerTitle.className = "timer-labels"; timerTitle.innerHTML = "<span>เวลาเปิด</span><span>เวลาปิด</span><span></span>";
+          const timerList = document.createElement("div"); timerList.className = "timer-list"; timerList.dataset.zoneTimers = zone;
+          const intervals = Array.isArray(settings.timers) ? settings.timers : [];
+          intervals.forEach((item) => addTimerRow(
+            timerList,
+            typeof item.open_at === "string" ? item.open_at : "",
+            typeof item.close_at === "string" ? item.close_at : ""
+          ));
+          const add = document.createElement("button"); add.type = "button"; add.className = "button soft small"; add.textContent = "＋ เพิ่มเวลา";
+          add.addEventListener("click", () => addTimerRow(timerList));
+          timerBlock.append(timerTitle, timerList, add);
+          const note = document.createElement("p"); note.className = "notice"; note.textContent = "เวลาแบบ 24 ชั่วโมง ทำซ้ำทุกวัน รองรับการข้ามเที่ยงคืน";
+          card.append(heading, modeField, overwriteLabel, timerBlock, note);
+          logicHost.append(card);
+        }
+        renderControls();
+      }
+      function renderSleepSummary() {
+        const configuredSleep = state.config.system_power_mode === "deep_sleep";
+        const reportedSleep = state.status && state.status.deep_sleep_status === "deep sleep";
+        const reportedAlwaysOn = state.status && state.status.deep_sleep_status === "always on";
+        if (reportedSleep) {
+          $("power-mode-display").textContent = "☾ Deep Sleep (ตั้งเวลาหลับลึก)";
+          $("power-mode-display").className = "mode-badge auto";
+        } else if (reportedAlwaysOn) {
+          $("power-mode-display").textContent = "☀ Always-On (ทำงานตลอดเวลา)";
+          $("power-mode-display").className = "mode-badge manual";
+        } else {
+          $("power-mode-display").textContent = configuredSleep
+            ? "รอสถานะ Deep Sleep จากบอร์ด"
+            : "รอสถานะ Always-On จากบอร์ด";
+          $("power-mode-display").className = "mode-badge";
+        }
+        const timers = Array.isArray(state.config.deep_sleep_timers) ? state.config.deep_sleep_timers : [];
+        if (state.lastRtcMs === null) {
+          $("sleep-current-window").textContent = timers.length
+            ? "รอเวลา DS3231 • ตารางที่ตั้งไว้: หลับ " + timers[0].sleep_at + " • ตื่น " + timers[0].wake_at
+            : "รอเวลา DS3231 เพื่อระบุช่วงเวลาปัจจุบัน";
+          return;
+        }
+        const instant = new Date(state.lastRtcMs);
+        const parts = new Intl.DateTimeFormat("en-GB", {
+          hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Bangkok"
+        }).formatToParts(instant);
+        const hour = Number(parts.find((part) => part.type === "hour")?.value);
+        const minute = Number(parts.find((part) => part.type === "minute")?.value);
+        const currentMinute = hour * 60 + minute;
+        const activeTimer = timers.find((timer) => {
+          const start = timer.sleep_at?.split(":").map(Number);
+          const end = timer.wake_at?.split(":").map(Number);
+          if (!start || !end || start.length !== 2 || end.length !== 2) return false;
+          const sleepAt = start[0] * 60 + start[1];
+          const wakeAt = end[0] * 60 + end[1];
+          return sleepAt < wakeAt
+            ? currentMinute >= sleepAt && currentMinute < wakeAt
+            : currentMinute >= sleepAt || currentMinute < wakeAt;
+        });
+        if (activeTimer) {
+          $("sleep-current-window").textContent = "ช่วงเวลาปัจจุบัน: หลับ " +
+            activeTimer.sleep_at + " • ตื่น " + activeTimer.wake_at;
+        } else if (timers.length) {
+          $("sleep-current-window").textContent = "ช่วงเวลาที่ตั้งไว้: หลับ " +
+            timers[0].sleep_at + " • ตื่น " + timers[0].wake_at +
+            (configuredSleep ? " • ตรวจตารางจาก DS3231" : " • ยังไม่เปิดใช้ Deep Sleep");
+        } else {
+          $("sleep-current-window").textContent = "ยังไม่มีช่วงเวลาหลับ/ตื่นที่ตั้งไว้";
+        }
+      }
+      function getZoneSettings(zone) {
+        const configs = state.config.zone_control || {};
+        return configs[zone] || {};
+      }
+      function renderControls() {
+        const host = $("zone-grid");
+        if (!host.children.length) {
+          for (const zone of zones) {
+            const card = document.createElement("article"); card.className = "zone-card";
+            card.innerHTML = '<div class="zone-title"><div><h4></h4><p data-label></p></div><button class="power-button" type="button" aria-label="สั่งเปิดหรือปิดโซน"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M12 3v9m6.36-6.36a9 9 0 1 1-12.72 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div><div class="mode-strip"><span class="mode-badge" data-mode></span><span class="mode-badge override" data-override hidden>Manual Override</span></div><div class="zone-footer"><button class="button green small" data-auto hidden type="button">คืนค่า Auto</button></div>';
+            card.querySelector("h4").textContent = flowTitles[zone];
+            card.querySelector(".power-button").dataset.zonePower = zone;
+            card.querySelector("[data-auto]").dataset.zoneAuto = zone;
+            host.append(card);
+          }
+        }
+        for (const zone of zones) {
+          const card = host.querySelector('[data-zone-card="' + zone + '"]') || [...host.children].find((el) => el.querySelector("[data-zone-power]").dataset.zonePower === zone);
+          if (!card) continue;
+          card.dataset.zoneCard = zone;
+          const mode = getZoneSettings(zone).mode === "timer_only" ? "timer_only" : "manual_only";
+          const commanded = state.status && state.status["ball_valve_" + zone + "_open"] === true;
+          const manualOverride = state.commands && state.commands["manual_override_" + zone] === true;
+          const power = card.querySelector("[data-zone-power]");
+          power.classList.toggle("on", commanded);
+          power.disabled = !state.connected || !state.boardOnline || !state.status || !state.status.controller_ready ||
+            (mode === "timer_only" && !getZoneSettings(zone).manual_overwrite_allowed);
+          power.onclick = () => toggleZone(zone);
+          card.querySelector("[data-label]").textContent = "Ball valve " + (commanded ? "ON" : "OFF") + " • Solenoid " +
+            (state.status && state.status["solenoid_" + zone + "_open"] === true ? "ON" : "OFF");
+          const modeBadge = card.querySelector("[data-mode]");
+          modeBadge.textContent = mode === "manual_only" ? "Manual Only" : "Timer Only";
+          modeBadge.className = "mode-badge " + (mode === "manual_only" ? "manual" : "auto");
+          const overrideBadge = card.querySelector("[data-override]");
+          overrideBadge.hidden = !manualOverride;
+          card.querySelector("[data-auto]").hidden = !manualOverride;
+          card.querySelector("[data-auto]").onclick = () => setAuto(zone);
+          if (mode === "timer_only" && !getZoneSettings(zone).manual_overwrite_allowed) {
+            power.disabled = true;
+            power.title = "โหมด Timer Only ไม่อนุญาต Manual Override";
+          } else {
+            power.title = "";
+          }
+        }
+        const pumpOn = state.status && state.status.main_pump_on === true;
+        $("pump-power").classList.toggle("on", pumpOn);
+        $("pump-power").disabled = true;
+        $("pump-state").textContent = state.status ? (pumpOn ? "Relay ON • ปั๊มทำงาน" : "Relay OFF • ปั๊มหยุด") : "รอสถานะจากบอร์ด";
+      }
+      async function toggleZone(zone) {
+        const settings = getZoneSettings(zone);
+        const mode = settings.mode;
+        const allowed = mode === "manual_only" || settings.manual_overwrite_allowed === true;
+        if (!state.connected || !state.boardOnline || !allowed || !state.db) return;
+        const statusOpen = state.status && state.status["ball_valve_" + zone + "_open"] === true;
+        const overrideActive = state.commands && state.commands["manual_override_" + zone] === true;
+        const commandOpen = state.commands && typeof state.commands[zone] === "boolean"
+          ? state.commands[zone] : statusOpen;
+        const current = mode === "timer_only" && !overrideActive ? statusOpen : commandOpen;
+        const update = { [zone]: !current };
+        if (mode === "timer_only") update["manual_override_" + zone] = true;
+        try {
+          await state.db.ref("node100/commands").update(update);
+          toast("ส่งคำสั่ง " + flowTitles[zone] + " แล้ว");
+        } catch (error) { console.error("Zone command update failed.", error); toast("ส่งคำสั่งไม่สำเร็จ ตรวจสอบ Firebase Rules"); }
+      }
+      async function setAuto(zone) {
+        try {
+          await state.db.ref("node100/commands/manual_override_" + zone).set(false);
+          toast("คืนการควบคุม " + flowTitles[zone] + " ให้ Timer แล้ว");
+        } catch (error) { console.error("Return-to-auto command failed.", error); toast("คืนค่า Auto ไม่สำเร็จ ตรวจสอบ Firebase Rules"); }
+      }
+      function collectTimers(container) {
+        return [...container.querySelectorAll(".timer-row")].map((row) => {
+          const fields = row.querySelectorAll('input[type="time"]');
+          return [fields[0].value, fields[1].value];
+        }).filter((item) => item[0] && item[1] && item[0] !== item[1]).map((item) => ({ open_at: item[0], close_at: item[1] }));
+      }
+      async function patchConfig(values, success) {
+        if (!state.connected || !state.db) { toast("Firebase ไม่เชื่อมต่อ"); return; }
+        try {
+          await state.db.ref("node100_config").update(values);
+          toast(success);
+        } catch (error) { console.error("Config update failed.", error); toast("บันทึกไม่สำเร็จ ตรวจสอบ Firebase Rules"); }
+      }
+      function saveSleepSettings() {
+        const schedules = [...$("sleep-timers").querySelectorAll(".timer-row")].map((row) => {
+          const inputs = row.querySelectorAll('input[type="time"]');
+          return { sleep_at: inputs[0].value, wake_at: inputs[1].value };
+        }).filter((item) => item.sleep_at && item.wake_at && item.sleep_at !== item.wake_at);
+        if (schedules.length > 8) { toast("ตั้งช่วง Deep Sleep ได้สูงสุด 8 ช่วง"); return; }
+        const mode = $("power-mode").value;
+        patchConfig({ system_power_mode: mode, deep_sleep_timers: schedules }, "บันทึกโหมดและตาราง Deep Sleep แล้ว");
+      }
+      function saveLogic() {
+        const zone_control = {};
+        for (const zone of zones) {
+          const mode = document.querySelector('[data-zone-mode="' + zone + '"]').value;
+          const allow = document.querySelector('[data-overwrite="' + zone + '"]').checked;
+          const timers = collectTimers(document.querySelector('[data-zone-timers="' + zone + '"]'));
+          if (timers.length > 8) { toast(flowTitles[zone] + " ตั้งเวลาได้สูงสุด 8 ช่วง"); return; }
+          zone_control[zone] = { mode, manual_overwrite_allowed: allow, timers };
+        }
+        patchConfig({ zone_control }, "บันทึกโหมดและ Multi-Timer แล้ว");
+      }
+      function renderHistory(records) {
+        state.history = records;
+        const ordered = [...records].sort((a,b) => (a.timestamp || 0) - (b.timestamp || 0));
+        $("record-count").textContent = String(ordered.length);
+        const fmt = (entry) => entry ? (entry.rtc_date || "") + " " + (entry.rtc_time || "") : "—";
+        $("first-record").textContent = fmt(ordered[0]);
+        $("last-record").textContent = fmt(ordered[ordered.length - 1]);
+        $("recording-state").textContent = state.config.statistics_enabled === true ? "กำลังบันทึก" : "หยุดบันทึก";
+        $("recording-state").style.color = state.config.statistics_enabled === true ? "var(--green)" : "var(--red)";
+        const limit = Number($("chart-count").value) || 100;
+        renderCharts(ordered.slice(-limit));
+      }
+      function drawChart(id, series, labels, colors) {
+        const canvas = $(id);
+        const rect = canvas.getBoundingClientRect();
+        const ratio = window.devicePixelRatio || 1;
+        canvas.width = Math.max(1, Math.round(rect.width * ratio));
+        canvas.height = Math.max(1, Math.round(rect.height * ratio));
+        const ctx = canvas.getContext("2d");
+        ctx.scale(ratio, ratio);
+        const width = rect.width, height = rect.height;
+        const pad = { left: 32, right: 8, top: 12, bottom: 25 };
+        const chartW = width - pad.left - pad.right, chartH = height - pad.top - pad.bottom;
+        ctx.font = "9px -apple-system, BlinkMacSystemFont, sans-serif";
+        ctx.strokeStyle = "#e8efec"; ctx.fillStyle = "#8a9892"; ctx.lineWidth = 1;
+        for (let i = 0; i <= 3; i++) {
+          const y = pad.top + chartH * i / 3;
+          ctx.beginPath(); ctx.moveTo(pad.left,y); ctx.lineTo(width-pad.right,y); ctx.stroke();
+          ctx.fillText(String(3-i), 5, y+3);
+        }
+        const all = series.flatMap((line) => line.values).filter(Number.isFinite);
+        if (!all.length) { ctx.fillStyle = "#87948f"; ctx.fillText("รอข้อมูลสถิติ", pad.left+8, pad.top+chartH/2); return; }
+        let min = Math.min(0, ...all), max = Math.max(...all);
+        if (max === min) max = min + 1;
+        const x = (index, length) => pad.left + (length < 2 ? chartW/2 : chartW*index/(length-1));
+        const y = (value) => pad.top + chartH - ((value-min)/(max-min))*chartH;
+        series.forEach((line,index) => {
+          ctx.strokeStyle = colors[index % colors.length]; ctx.fillStyle = colors[index % colors.length];
+          ctx.lineWidth = 2; ctx.beginPath();
+          let started = false;
+          line.values.forEach((value,i) => {
+            if (!Number.isFinite(value)) { started = false; return; }
+            if (!started) { ctx.moveTo(x(i,line.values.length),y(value)); started = true; }
+            else ctx.lineTo(x(i,line.values.length),y(value));
+          });
+          ctx.stroke();
+        });
+        const step = Math.max(1, Math.floor(labels.length/4));
+        labels.forEach((label,i) => {
+          if (i % step === 0 || i === labels.length-1) {
+            ctx.fillStyle = "#84918c";
+            ctx.fillText(label, Math.max(pad.left, x(i,labels.length)-10), height-6);
+          }
+        });
+        let legendX = pad.left;
+        series.forEach((line,index) => {
+          ctx.fillStyle = colors[index % colors.length]; ctx.fillRect(legendX,pad.top-9,7,7);
+          ctx.fillStyle = "#63716b"; ctx.fillText(line.name,legendX+10,pad.top-2);
+          legendX += 15 + ctx.measureText(line.name).width;
+        });
+      }
+      function renderCharts(records) {
+        const labels = records.map((item) => (item.rtc_time || "").slice(0,5));
+        const values = (key) => records.map((item) => Number.isFinite(item[key]) ? item[key] : null);
+        drawChart("chart-environment", [
+          {name:"°C",values:values("temperature_c")},{name:"RH%",values:values("humidity_percent")}
+        ], labels, ["#c87536","#3d7bc0"]);
+        drawChart("chart-soil", [{name:"Soil %",values:values("soil_moisture_percent")}], labels, ["#7966bb"]);
+        drawChart("chart-session-water", [
+          {name:"A",values:values("flow_zone_a_session_liters")},
+          {name:"B",values:values("flow_zone_b_session_liters")},
+          {name:"C",values:values("flow_zone_c_session_liters")},
+          {name:"Pump",values:values("flow_main_pump_session_liters")}
+        ], labels, ["#168366","#3d7bc0","#c87536","#7966bb"]);
+        drawChart("chart-totals", [
+          {name:"A",values:values("total_zone_a_liters")},
+          {name:"B",values:values("total_zone_b_liters")},
+          {name:"C",values:values("total_zone_c_liters")},
+          {name:"Pump",values:values("total_main_pump_liters")},
+          {name:"Relay A",values:values("relay_zone_a")},
+          {name:"Relay B",values:values("relay_zone_b")},
+          {name:"Relay C",values:values("relay_zone_c")},
+          {name:"Pump relay",values:values("relay_main_pump")}
+        ], labels, ["#168366","#3d7bc0","#c87536","#7966bb","#87bca7","#8ab2da","#e2af7e","#aaa0d2"]);
+      }
+      function csvCell(value) {
+        const text = value === null || value === undefined ? "" : String(value);
+        return '"' + text.replace(/"/g, '""') + '"';
+      }
+      function exportCsv() {
+        if (!state.history.length) { toast("ยังไม่มีข้อมูลสถิติสำหรับ Export"); return; }
+        const columns = ["rtc_date","rtc_time","temperature_c","humidity_percent","soil_moisture_percent",
+          "flow_zone_a_session_liters","flow_zone_b_session_liters","flow_zone_c_session_liters","flow_main_pump_session_liters",
+          "total_zone_a_liters","total_zone_b_liters","total_zone_c_liters","total_main_pump_liters",
+          "relay_zone_a","relay_zone_b","relay_zone_c","relay_main_pump"];
+        const rows = [columns.map(csvCell).join(",")];
+        [...state.history].sort((a,b) => (a.timestamp||0)-(b.timestamp||0)).forEach((record) => rows.push(columns.map((key) => csvCell(record[key])).join(",")));
+        const blob = new Blob(["\uFEFF" + rows.join("\r\n")], {type:"text/csv;charset=utf-8"});
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a"); link.href=url; link.download="node100-statistics.csv"; link.click();
+        URL.revokeObjectURL(url);
+      }
+      async function resetTotals() {
+        if (!state.connected || !state.db) { toast("Firebase ไม่เชื่อมต่อ"); return; }
+        if (!window.confirm("ยืนยันเริ่มนับปริมาณน้ำสะสมใหม่เป็น 0 ทั้ง 4 จุดหรือไม่?")) return;
+        try {
+          await state.db.ref("node100/commands/reset_flow_totals").set(true);
+          toast("ส่งคำขอ Reset แล้ว รอ ESP32 ยืนยัน");
+        } catch (error) { console.error("Flow total reset request failed.",error); toast("ส่งคำขอ Reset ไม่สำเร็จ ตรวจสอบ Firebase Rules"); }
+      }
+      async function setRecording(enabled) {
+        await patchConfig({statistics_enabled:enabled},"อัปเดตสถานะการเก็บสถิติแล้ว");
+      }
+      async function saveStatSettings() {
+        const interval = Number($("sample-interval").value);
+        if (!Number.isInteger(interval) || interval < 1 || interval > 1440) { toast("ความถี่ต้องอยู่ระหว่าง 1–1440 นาที"); return; }
+        await patchConfig({statistics_interval_minutes:interval},"บันทึกความถี่การเก็บสถิติแล้ว");
+      }
+      async function clearHistory() {
+        if (!state.connected || !state.db) { toast("Firebase ไม่เชื่อมต่อ"); return; }
+        if (!window.confirm("การล้างนี้จะลบ node100/history ทั้งหมดและมีผลกับทุกอุปกรณ์ ยืนยันลบหรือไม่?")) return;
+        try { await state.db.ref("node100/history").remove(); toast("ล้างประวัติสถิติแล้ว"); }
+        catch (error) { console.error("Firebase history clear failed.",error); toast("ล้างข้อมูลไม่สำเร็จ ตรวจสอบ Firebase Rules"); }
+      }
+      function attachDatabaseListeners() {
+        if (!firebase.database) {
+          setCloud(false);
+          toast("Firebase Realtime Database SDK โหลดไม่สำเร็จ");
+          return;
+        }
+        try {
+          state.db = firebase.database();
+          state.db.ref(".info/connected").on("value",(snap) => setCloud(snap.val() === true),(error) => { console.error("Firebase connection listener failed.",error); setCloud(false); });
+          state.db.ref(".info/serverTimeOffset").on("value",(snap) => {
+            state.serverTimeOffset = Number(snap.val()) || 0;
+            if (state.lastBoardHeartbeatMs !== null) {
+              const age = Date.now() + state.serverTimeOffset - state.lastBoardHeartbeatMs;
+              setBoard(age >= -30000 && age < 20000);
+            }
+          },(error) => { console.error("Firebase server time offset listener failed.",error); });
+          state.db.ref("node100/telemetry").on("value",(snap) => updateTelemetry(snap.val()),(error) => { console.error("Telemetry read failed.",error); toast("อ่าน telemetry ไม่ได้ ตรวจสอบ Firebase Rules"); });
+          state.db.ref("node100/status").on("value",(snap) => { state.status=snap.val()||null; renderControls(); renderSleepSummary(); },(error) => { console.error("Status read failed.",error); toast("อ่านสถานะอุปกรณ์ไม่ได้ ตรวจสอบ Firebase Rules"); });
+          state.db.ref("node100/commands").on("value",(snap) => { state.commands=snap.val()||{}; renderControls(); },(error) => { console.error("Commands read failed.",error); toast("อ่านคำสั่งไม่ได้ ตรวจสอบ Firebase Rules"); });
+          state.db.ref("node100_config").on("value",(snap) => renderConfig(snap.val()),(error) => { console.error("Config read failed.",error); toast("อ่านค่าตั้งไม่ได้ ตรวจสอบ Firebase Rules"); });
+          state.db.ref("node100/history").on("value",(snap) => {
+            const value=snap.val()||{};
+            const records=Object.entries(value).map(([key,item])=>({...item,_key:key,timestamp:Date.parse(item.rtc_date+"T"+item.rtc_time+"+07:00")||0}));
+            renderHistory(records);
+          },(error) => { console.error("History read failed.",error); toast("อ่านสถิติไม่ได้ ตรวจสอบ Firebase Rules"); });
+        } catch (error) { console.error("Firebase initialization failed.",error); setCloud(false); }
+      }
+      function showAuthError(error) {
+        const messages = {
+          "auth/invalid-email": "รูปแบบอีเมลไม่ถูกต้อง",
+          "auth/user-disabled": "บัญชีนี้ถูกปิดใช้งาน",
+          "auth/user-not-found": "ไม่พบบัญชีนี้",
+          "auth/wrong-password": "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
+          "auth/invalid-credential": "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
+          "auth/too-many-requests": "พยายามเข้าสู่ระบบหลายครั้งเกินไป กรุณารอสักครู่",
+          "auth/network-request-failed": "เชื่อมต่อ Firebase ไม่สำเร็จ ตรวจสอบอินเทอร์เน็ต"
+        };
+        $("auth-error").textContent = messages[error.code] || "เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบบัญชีและการตั้งค่า Firebase Authentication";
+        console.error("Firebase sign-in failed.", error);
+      }
+      function connectFirebase() {
+        if (!window.firebase || !firebase.auth || !firebase.database) {
+          setCloud(false);
+          $("auth-error").textContent = "Firebase SDK โหลดไม่สำเร็จ กรุณาเปิดหน้าเว็บผ่าน Firebase Hosting";
+          return;
+        }
+        try {
+          if (firebase.apps.length === 0) firebase.initializeApp(firebaseConfig);
+          state.auth = firebase.auth();
+          state.auth.onAuthStateChanged((user) => {
+            $("auth-error").textContent = "";
+            $("auth-gate").hidden = Boolean(user);
+            $("main").hidden = !user;
+            $("account-control").hidden = !user;
+            $("account-email").textContent = user ? user.email || "บัญชี Firebase" : "";
+            if (user) {
+              attachDatabaseListeners();
+            } else {
+              if (state.db) {
+                [".info/connected", ".info/serverTimeOffset", "node100/telemetry", "node100/status", "node100/commands", "node100_config", "node100/history"]
+                  .forEach((path) => state.db.ref(path).off());
+              }
+              state.db = null;
+              state.telemetry = null;
+              state.status = null;
+              state.commands = null;
+              state.config = {};
+              state.history = [];
+              state.totals = {};
+              state.lastRtcMs = null;
+              state.lastBoardHeartbeatMs = null;
+              setCloud(false);
+              setBoard(false);
+              $("device-clock").textContent = "รอเวลา DS3231…";
+              $("last-update").textContent = "รอข้อมูลจากอุปกรณ์";
+            }
+          }, (error) => {
+            console.error("Firebase authentication state listener failed.", error);
+            $("auth-error").textContent = "ตรวจสอบสถานะการเข้าสู่ระบบไม่สำเร็จ";
+          });
+        } catch (error) {
+          console.error("Firebase initialization failed.", error);
+          setCloud(false);
+          $("auth-error").textContent = "เริ่มต้น Firebase ไม่สำเร็จ กรุณาตรวจสอบการตั้งค่าโปรเจกต์";
+        }
+      }
+      $("flow-grid").replaceChildren();
+      makeFlowCards();
+      $("zone-grid").replaceChildren();
+      renderControls();
+      $("add-sleep-timer").addEventListener("click",()=>addSleepRow());
+      $("save-sleep-settings").addEventListener("click",saveSleepSettings);
+      $("save-logic").addEventListener("click",saveLogic);
+      $("reset-totals").addEventListener("click",resetTotals);
+      $("toggle-recording").addEventListener("click",()=>setRecording(state.config.statistics_enabled!==true));
+      $("save-stat-settings").addEventListener("click",saveStatSettings);
+      $("chart-count").addEventListener("change",()=>renderHistory(state.history));
+      $("export-csv").addEventListener("click",exportCsv);
+      $("clear-history").addEventListener("click",clearHistory);
+      $("sign-in-form").addEventListener("submit",async(event)=>{
+        event.preventDefault();
+        $("auth-error").textContent = "";
+        $("sign-in").disabled = true;
+        try {
+          await state.auth.signInWithEmailAndPassword($("auth-email").value.trim(),$("auth-password").value);
+        } catch (error) {
+          showAuthError(error);
+        } finally {
+          $("sign-in").disabled = false;
+        }
+      });
+      $("sign-out").addEventListener("click",async()=>{
+        try {
+          await state.auth.signOut();
+          window.location.replace("index.html");
+        }
+        catch (error) { console.error("Firebase sign-out failed.",error); toast("ออกจากระบบไม่สำเร็จ"); }
+      });
+      window.addEventListener("resize",()=>renderCharts(state.history.slice(-Number($("chart-count").value))));
+      setInterval(()=>{ if(state.lastBoardHeartbeatMs!==null && Date.now()+state.serverTimeOffset-state.lastBoardHeartbeatMs>=20000) setBoard(false); },1000);
+      connectFirebase();
+    });
+  </script>
+</body>
+</html>

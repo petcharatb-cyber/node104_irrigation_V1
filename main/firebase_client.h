@@ -8,6 +8,7 @@ typedef enum {
     FIREBASE_RESOURCE_STATUS,
     FIREBASE_RESOURCE_COMMANDS,
     FIREBASE_RESOURCE_CONFIG,
+    FIREBASE_RESOURCE_HISTORY,
 } firebase_resource_t;
 
 typedef enum {
@@ -23,4 +24,5 @@ typedef void (*firebase_document_callback_t)(firebase_resource_t resource,
 esp_err_t firebase_client_start(firebase_document_callback_t callback, void *context);
 esp_err_t firebase_client_patch(firebase_resource_t resource, const cJSON *document);
 esp_err_t firebase_client_put(firebase_resource_t resource, const cJSON *document);
+esp_err_t firebase_client_post(firebase_resource_t resource, const cJSON *document);
 esp_err_t firebase_client_set_power_mode(firebase_power_mode_t mode);

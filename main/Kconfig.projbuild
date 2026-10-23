@@ -172,6 +172,10 @@ menu "Node100 Irrigation Master"
         string "Firebase system config path"
         default "node100_config"
 
+    config N100_FIREBASE_HISTORY_PATH
+        string "Firebase statistics history path"
+        default "node100/history"
+
     config N100_FIREBASE_AUTH_TOKEN
         string "Firebase auth token or legacy URL (keep local)"
         default ""

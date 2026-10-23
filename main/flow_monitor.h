@@ -7,6 +7,9 @@
 
 typedef struct {
     float liters_per_minute;
+    float liters_in_interval;
+    float cumulative_liters;
+    float last_session_liters;
     uint32_t pulses_in_interval;
     bool leak_detected;
 } flow_reading_t;
@@ -29,3 +32,6 @@ esp_err_t flow_monitor_init(void);
 esp_err_t flow_monitor_read(flow_monitor_reading_t *reading);
 void flow_monitor_set_zone_valves_closed(flow_zone_t zone, bool valves_closed);
 void flow_monitor_set_all_zones_closed(bool all_zones_closed);
+void flow_monitor_set_zone_active(flow_zone_t zone, bool active);
+void flow_monitor_set_main_pump_active(bool active);
+esp_err_t flow_monitor_reset_totals(void);

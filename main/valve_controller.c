@@ -3,8 +3,11 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <stdint.h>
+#include <string.h>
 
+#include "ds3231.h"
 #include "driver/gpio.h"
 #include "esp_log.h"
 #include "firebase_client.h"
@@ -14,8 +17,10 @@
 #include "freertos/task.h"
 
 #define VALVE_ZONE_COUNT 3
+#define VALVE_MAX_TIMER_INTERVALS 8
 #define VALVE_CONTROLLER_TASK_STACK_SIZE 4096
 #define VALVE_CONTROLLER_POLL_DELAY_MS 100
+#define VALVE_TIMER_CHECK_INTERVAL_MS 1000
 
 static const char *TAG = "valve_controller";
 
@@ -38,14 +43,100 @@ static const char *const s_zone_names[VALVE_ZONE_COUNT] = {"zone_a", "zone_b", "
 static portMUX_TYPE s_state_mux = portMUX_INITIALIZER_UNLOCKED;
 static bool s_desired_open[VALVE_ZONE_COUNT];
 static bool s_ball_valve_open[VALVE_ZONE_COUNT];
+static bool s_ball_motor_moving[VALVE_ZONE_COUNT];
 static bool s_solenoid_open[VALVE_ZONE_COUNT];
 static bool s_initialized;
 static bool s_controller_ready;
 static bool s_main_pump_on;
+static bool s_force_all_closed;
+static bool s_flow_reset_command_applied;
+static bool s_zone_timer_mode[VALVE_ZONE_COUNT];
+static bool s_manual_overwrite_allowed[VALVE_ZONE_COUNT];
+static bool s_manual_override[VALVE_ZONE_COUNT];
+static uint8_t s_timer_count[VALVE_ZONE_COUNT];
+static uint16_t s_timer_open_minute[VALVE_ZONE_COUNT][VALVE_MAX_TIMER_INTERVALS];
+static uint16_t s_timer_close_minute[VALVE_ZONE_COUNT][VALVE_MAX_TIMER_INTERVALS];
 static uint32_t s_ball_valve_run_time_seconds =
     CONFIG_N100_BALL_VALVE_RUN_TIME_SECONDS;
 static uint32_t s_solenoid_close_delay_seconds =
     CONFIG_N100_SOLENOID_CLOSE_DELAY_SECONDS;
+
+static bool parse_clock_minute(const cJSON *value, uint16_t *minute_out)
+{
+    if (!cJSON_IsString(value) || value->valuestring == NULL ||
+        strlen(value->valuestring) != 5 || value->valuestring[2] != ':') {
+        return false;
+    }
+    const char *clock = value->valuestring;
+    if (clock[0] < '0' || clock[0] > '2' || clock[1] < '0' || clock[1] > '9' ||
+        clock[3] < '0' || clock[3] > '5' || clock[4] < '0' || clock[4] > '9') {
+        return false;
+    }
+    const uint16_t hour = (uint16_t)((clock[0] - '0') * 10 + clock[1] - '0');
+    const uint16_t minute = (uint16_t)((clock[3] - '0') * 10 + clock[4] - '0');
+    if (hour > 23) {
+        return false;
+    }
+    *minute_out = (uint16_t)(hour * 60 + minute);
+    return true;
+}
+
+static bool timer_interval_active(uint16_t now, uint16_t open_at, uint16_t close_at)
+{
+    if (open_at < close_at) {
+        return now >= open_at && now < close_at;
+    }
+    return now >= open_at || now < close_at;
+}
+
+static void update_timer_targets(void)
+{
+    struct tm now = {0};
+    if (ds3231_get_time(&now) != ESP_OK) {
+        return;
+    }
+    const uint16_t minute = (uint16_t)(now.tm_hour * 60 + now.tm_min);
+    bool timer_mode[VALVE_ZONE_COUNT];
+    bool manual_override[VALVE_ZONE_COUNT];
+    uint8_t timer_count[VALVE_ZONE_COUNT];
+    uint16_t opens[VALVE_ZONE_COUNT][VALVE_MAX_TIMER_INTERVALS];
+    uint16_t closes[VALVE_ZONE_COUNT][VALVE_MAX_TIMER_INTERVALS];
+    portENTER_CRITICAL(&s_state_mux);
+    for (size_t zone = 0; zone < VALVE_ZONE_COUNT; ++zone) {
+        timer_mode[zone] = s_zone_timer_mode[zone];
+        manual_override[zone] = s_manual_override[zone];
+        timer_count[zone] = s_timer_count[zone];
+        memcpy(opens[zone], s_timer_open_minute[zone], sizeof(opens[zone]));
+        memcpy(closes[zone], s_timer_close_minute[zone], sizeof(closes[zone]));
+    }
+    portEXIT_CRITICAL(&s_state_mux);
+
+    for (size_t zone = 0; zone < VALVE_ZONE_COUNT; ++zone) {
+        bool force_closed;
+        portENTER_CRITICAL(&s_state_mux);
+        force_closed = s_force_all_closed;
+        portEXIT_CRITICAL(&s_state_mux);
+        if (force_closed) {
+            portENTER_CRITICAL(&s_state_mux);
+            s_desired_open[zone] = false;
+            portEXIT_CRITICAL(&s_state_mux);
+            continue;
+        }
+        if (!timer_mode[zone] || manual_override[zone]) {
+            continue;
+        }
+        bool should_open = false;
+        for (size_t interval = 0; interval < timer_count[zone]; ++interval) {
+            if (timer_interval_active(minute, opens[zone][interval], closes[zone][interval])) {
+                should_open = true;
+                break;
+            }
+        }
+        portENTER_CRITICAL(&s_state_mux);
+        s_desired_open[zone] = should_open;
+        portEXIT_CRITICAL(&s_state_mux);
+    }
+}
 
 static esp_err_t validate_output_gpios(void)
 {
@@ -101,6 +192,7 @@ static void update_pump_state(void)
         s_main_pump_on = any_zone_open;
         portEXIT_CRITICAL(&s_state_mux);
         relay_set(s_pump_gpio, any_zone_open);
+        flow_monitor_set_main_pump_active(any_zone_open);
         ESP_LOGI(TAG, "Main pump relay %s", any_zone_open ? "ON" : "OFF");
         return;
     }
@@ -160,12 +252,18 @@ static void drive_ball_valve(size_t zone, bool open)
     relay_set(s_zone_gpios[zone].open_gpio, false);
     relay_set(s_zone_gpios[zone].close_gpio, false);
     relay_set(inactive_gpio, false);
+    portENTER_CRITICAL(&s_state_mux);
+    s_ball_motor_moving[zone] = true;
+    portEXIT_CRITICAL(&s_state_mux);
     relay_set(active_gpio, true);
     ESP_LOGI(TAG, "Zone %c ball valve motor moving %s for %" PRIu32 " seconds",
              'A' + (int)zone, open ? "OPEN" : "CLOSE",
              ball_valve_run_time_seconds());
     vTaskDelay(pdMS_TO_TICKS(ball_valve_run_time_seconds() * 1000U));
     relay_set(active_gpio, false);
+    portENTER_CRITICAL(&s_state_mux);
+    s_ball_motor_moving[zone] = false;
+    portEXIT_CRITICAL(&s_state_mux);
 }
 
 static void set_zone_closed_for_leak_monitor(size_t zone, bool closed)
@@ -257,6 +355,12 @@ static void valve_controller_task(void *argument)
     publish_valve_status();
 
     for (;;) {
+        static TickType_t last_timer_check;
+        const TickType_t now = xTaskGetTickCount();
+        if (now - last_timer_check >= pdMS_TO_TICKS(VALVE_TIMER_CHECK_INTERVAL_MS)) {
+            update_timer_targets();
+            last_timer_check = now;
+        }
         for (size_t zone = 0; zone < VALVE_ZONE_COUNT; ++zone) {
             if (desired_open(zone)) {
                 bool was_open;
@@ -274,6 +378,7 @@ static void valve_controller_task(void *argument)
                     publish_valve_status();
                     drive_ball_valve(zone, true);
                     set_zone_states(zone, true, true);
+                    flow_monitor_set_zone_active((flow_zone_t)zone, true);
                     set_zone_closed_for_leak_monitor(zone, false);
                     update_pump_state();
                     publish_valve_status();
@@ -289,6 +394,7 @@ static void valve_controller_task(void *argument)
 
                 drive_ball_valve(zone, false);
                 set_zone_states(zone, false, true);
+                flow_monitor_set_zone_active((flow_zone_t)zone, false);
                 update_pump_state();
                 publish_valve_status();
                 finish_zone_close(zone);
@@ -350,23 +456,6 @@ esp_err_t valve_controller_init(void)
     return ESP_OK;
 }
 
-static esp_err_t update_zone_command(const cJSON *commands, size_t zone)
-{
-    const cJSON *command = cJSON_GetObjectItemCaseSensitive(commands, s_zone_names[zone]);
-    if (command == NULL) {
-        return ESP_OK;
-    }
-    if (!cJSON_IsBool(command)) {
-        ESP_LOGE(TAG, "Firebase valve command '%s' must be boolean", s_zone_names[zone]);
-        return ESP_ERR_INVALID_ARG;
-    }
-
-    portENTER_CRITICAL(&s_state_mux);
-    s_desired_open[zone] = cJSON_IsTrue(command);
-    portEXIT_CRITICAL(&s_state_mux);
-    return ESP_OK;
-}
-
 esp_err_t valve_controller_initialize_firebase_commands(void)
 {
     cJSON *commands = cJSON_CreateObject();
@@ -408,6 +497,13 @@ esp_err_t valve_controller_apply_firebase_commands(const cJSON *document)
         return ESP_ERR_INVALID_ARG;
     }
 
+    const cJSON *reset_totals =
+        cJSON_GetObjectItemCaseSensitive(commands, "reset_flow_totals");
+    if (reset_totals != NULL && !cJSON_IsBool(reset_totals)) {
+        ESP_LOGE(TAG, "Firebase reset_flow_totals command must be boolean");
+        return ESP_ERR_INVALID_ARG;
+    }
+
     for (size_t zone = 0; zone < VALVE_ZONE_COUNT; ++zone) {
         const cJSON *command =
             cJSON_GetObjectItemCaseSensitive(commands, s_zone_names[zone]);
@@ -416,12 +512,74 @@ esp_err_t valve_controller_apply_firebase_commands(const cJSON *document)
                      s_zone_names[zone]);
             return ESP_ERR_INVALID_ARG;
         }
+        char override_name[40];
+        const int written = snprintf(override_name, sizeof(override_name),
+                                     "manual_override_%s", s_zone_names[zone]);
+        if (written < 0 || (size_t)written >= sizeof(override_name)) {
+            return ESP_ERR_INVALID_SIZE;
+        }
+        const cJSON *override =
+            cJSON_GetObjectItemCaseSensitive(commands, override_name);
+        if (override != NULL && !cJSON_IsBool(override)) {
+            ESP_LOGE(TAG, "Firebase command '%s' must be boolean", override_name);
+            return ESP_ERR_INVALID_ARG;
+        }
     }
 
     for (size_t zone = 0; zone < VALVE_ZONE_COUNT; ++zone) {
-        esp_err_t err = update_zone_command(commands, zone);
-        if (err != ESP_OK) {
-            return err;
+        char override_name[40];
+        const int written = snprintf(override_name, sizeof(override_name),
+                                     "manual_override_%s", s_zone_names[zone]);
+        if (written < 0 || (size_t)written >= sizeof(override_name)) {
+            return ESP_ERR_INVALID_SIZE;
+        }
+        const cJSON *override =
+            cJSON_GetObjectItemCaseSensitive(commands, override_name);
+        const cJSON *command =
+            cJSON_GetObjectItemCaseSensitive(commands, s_zone_names[zone]);
+        portENTER_CRITICAL(&s_state_mux);
+        if (override != NULL) {
+            const bool requested_override = cJSON_IsTrue(override);
+            s_manual_override[zone] =
+                requested_override && s_manual_overwrite_allowed[zone];
+        }
+        if (command != NULL &&
+            (!s_zone_timer_mode[zone] || s_manual_override[zone])) {
+            s_desired_open[zone] = cJSON_IsTrue(command);
+        }
+        portEXIT_CRITICAL(&s_state_mux);
+    }
+
+    if (reset_totals != NULL) {
+        if (cJSON_IsTrue(reset_totals)) {
+            if (!s_flow_reset_command_applied) {
+                const esp_err_t reset_err = flow_monitor_reset_totals();
+                if (reset_err != ESP_OK) {
+                    return reset_err;
+                }
+                s_flow_reset_command_applied = true;
+                ESP_LOGI(TAG, "Persistent flow totals reset");
+            }
+            cJSON *ack = cJSON_CreateObject();
+            if (ack == NULL) {
+                return ESP_ERR_NO_MEM;
+            }
+            if (cJSON_AddBoolToObject(ack, "reset_flow_totals", false) == NULL) {
+                cJSON_Delete(ack);
+                return ESP_ERR_NO_MEM;
+            }
+            const esp_err_t ack_err =
+                firebase_client_patch(FIREBASE_RESOURCE_COMMANDS, ack);
+            cJSON_Delete(ack);
+            if (ack_err != ESP_OK) {
+                ESP_LOGE(TAG, "Flow total reset acknowledgement failed: %s",
+                         esp_err_to_name(ack_err));
+                return ack_err;
+            }
+            ESP_LOGI(TAG, "Persistent flow total reset acknowledged");
+            s_flow_reset_command_applied = false;
+        } else {
+            s_flow_reset_command_applied = false;
         }
     }
     return ESP_OK;
@@ -464,6 +622,98 @@ esp_err_t valve_controller_apply_firebase_config(const cJSON *document)
         close_delay != NULL ? (uint32_t)close_delay->valuedouble
                             : CONFIG_N100_SOLENOID_CLOSE_DELAY_SECONDS;
 
+    bool timer_mode[VALVE_ZONE_COUNT];
+    bool overwrite_allowed[VALVE_ZONE_COUNT];
+    uint8_t timer_count[VALVE_ZONE_COUNT];
+    uint16_t timer_open[VALVE_ZONE_COUNT][VALVE_MAX_TIMER_INTERVALS] = {{0}};
+    uint16_t timer_close[VALVE_ZONE_COUNT][VALVE_MAX_TIMER_INTERVALS] = {{0}};
+    const cJSON *zone_control =
+        cJSON_IsObject(document)
+            ? cJSON_GetObjectItemCaseSensitive(document, "zone_control")
+            : NULL;
+    if (zone_control != NULL && !cJSON_IsObject(zone_control)) {
+        ESP_LOGE(TAG, "Firebase zone_control must be an object");
+        return ESP_ERR_INVALID_ARG;
+    }
+    for (size_t zone = 0; zone < VALVE_ZONE_COUNT; ++zone) {
+        portENTER_CRITICAL(&s_state_mux);
+        timer_mode[zone] = s_zone_timer_mode[zone];
+        overwrite_allowed[zone] = s_manual_overwrite_allowed[zone];
+        timer_count[zone] = s_timer_count[zone];
+        memcpy(timer_open[zone], s_timer_open_minute[zone], sizeof(timer_open[zone]));
+        memcpy(timer_close[zone], s_timer_close_minute[zone], sizeof(timer_close[zone]));
+        portEXIT_CRITICAL(&s_state_mux);
+        if (zone_control == NULL) {
+            continue;
+        }
+        const cJSON *zone_settings =
+            cJSON_GetObjectItemCaseSensitive(zone_control, s_zone_names[zone]);
+        if (zone_settings == NULL) {
+            continue;
+        }
+        if (!cJSON_IsObject(zone_settings)) {
+            ESP_LOGE(TAG, "Firebase zone_control.%s must be an object",
+                     s_zone_names[zone]);
+            return ESP_ERR_INVALID_ARG;
+        }
+        const cJSON *mode =
+            cJSON_GetObjectItemCaseSensitive(zone_settings, "mode");
+        if (mode != NULL) {
+            if (!cJSON_IsString(mode) || mode->valuestring == NULL) {
+                ESP_LOGE(TAG, "Firebase zone mode must be a string");
+                return ESP_ERR_INVALID_ARG;
+            }
+            if (strcmp(mode->valuestring, "manual_only") == 0) {
+                timer_mode[zone] = false;
+            } else if (strcmp(mode->valuestring, "timer_only") == 0) {
+                timer_mode[zone] = true;
+            } else {
+                ESP_LOGE(TAG, "Unsupported mode for %s", s_zone_names[zone]);
+                return ESP_ERR_INVALID_ARG;
+            }
+        }
+        const cJSON *allow =
+            cJSON_GetObjectItemCaseSensitive(zone_settings,
+                                             "manual_overwrite_allowed");
+        if (allow != NULL) {
+            if (!cJSON_IsBool(allow)) {
+                ESP_LOGE(TAG, "Firebase manual_overwrite_allowed must be boolean");
+                return ESP_ERR_INVALID_ARG;
+            }
+            overwrite_allowed[zone] = cJSON_IsTrue(allow);
+        }
+        const cJSON *timers =
+            cJSON_GetObjectItemCaseSensitive(zone_settings, "timers");
+        if (timers != NULL) {
+            if (!cJSON_IsArray(timers) ||
+                cJSON_GetArraySize(timers) > VALVE_MAX_TIMER_INTERVALS) {
+                ESP_LOGE(TAG, "Firebase zone timers must be an array of at most %d entries",
+                         VALVE_MAX_TIMER_INTERVALS);
+                return ESP_ERR_INVALID_ARG;
+            }
+            timer_count[zone] = (uint8_t)cJSON_GetArraySize(timers);
+            memset(timer_open[zone], 0, sizeof(timer_open[zone]));
+            memset(timer_close[zone], 0, sizeof(timer_close[zone]));
+            const cJSON *timer = NULL;
+            size_t index = 0;
+            cJSON_ArrayForEach(timer, timers) {
+                const cJSON *open_at =
+                    cJSON_GetObjectItemCaseSensitive(timer, "open_at");
+                const cJSON *close_at =
+                    cJSON_GetObjectItemCaseSensitive(timer, "close_at");
+                if (!cJSON_IsObject(timer) ||
+                    !parse_clock_minute(open_at, &timer_open[zone][index]) ||
+                    !parse_clock_minute(close_at, &timer_close[zone][index]) ||
+                    timer_open[zone][index] == timer_close[zone][index]) {
+                    ESP_LOGE(TAG, "Invalid timer interval in zone %s",
+                             s_zone_names[zone]);
+                    return ESP_ERR_INVALID_ARG;
+                }
+                ++index;
+            }
+        }
+    }
+
     if (run_time == NULL || close_delay == NULL) {
         cJSON *defaults = cJSON_CreateObject();
         if (defaults == NULL) {
@@ -494,6 +744,68 @@ esp_err_t valve_controller_apply_firebase_config(const cJSON *document)
     portENTER_CRITICAL(&s_state_mux);
     s_ball_valve_run_time_seconds = run_time_seconds;
     s_solenoid_close_delay_seconds = close_delay_seconds;
+    for (size_t zone = 0; zone < VALVE_ZONE_COUNT; ++zone) {
+        s_zone_timer_mode[zone] = timer_mode[zone];
+        s_manual_overwrite_allowed[zone] = overwrite_allowed[zone];
+        s_timer_count[zone] = timer_count[zone];
+        memcpy(s_timer_open_minute[zone], timer_open[zone],
+               sizeof(s_timer_open_minute[zone]));
+        memcpy(s_timer_close_minute[zone], timer_close[zone],
+               sizeof(s_timer_close_minute[zone]));
+        if (!s_zone_timer_mode[zone] || !s_manual_overwrite_allowed[zone]) {
+            s_manual_override[zone] = false;
+        }
+    }
     portEXIT_CRITICAL(&s_state_mux);
     return ESP_OK;
+}
+
+esp_err_t valve_controller_add_history_state(cJSON *document)
+{
+    if (document == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    bool ball_open[VALVE_ZONE_COUNT];
+    bool pump_on;
+    portENTER_CRITICAL(&s_state_mux);
+    for (size_t zone = 0; zone < VALVE_ZONE_COUNT; ++zone) {
+        ball_open[zone] = s_ball_valve_open[zone];
+    }
+    pump_on = s_main_pump_on;
+    portEXIT_CRITICAL(&s_state_mux);
+
+    if (cJSON_AddBoolToObject(document, "relay_zone_a", ball_open[0]) == NULL ||
+        cJSON_AddBoolToObject(document, "relay_zone_b", ball_open[1]) == NULL ||
+        cJSON_AddBoolToObject(document, "relay_zone_c", ball_open[2]) == NULL ||
+        cJSON_AddBoolToObject(document, "relay_main_pump", pump_on) == NULL) {
+        ESP_LOGE(TAG, "Could not add valve state to statistics document");
+        return ESP_ERR_NO_MEM;
+    }
+    return ESP_OK;
+}
+
+void valve_controller_request_all_closed(bool requested)
+{
+    portENTER_CRITICAL(&s_state_mux);
+    s_force_all_closed = requested;
+    if (requested) {
+        for (size_t zone = 0; zone < VALVE_ZONE_COUNT; ++zone) {
+            s_desired_open[zone] = false;
+        }
+    }
+    portEXIT_CRITICAL(&s_state_mux);
+}
+
+bool valve_controller_all_zones_closed(void)
+{
+    bool all_closed = true;
+    portENTER_CRITICAL(&s_state_mux);
+    for (size_t zone = 0; zone < VALVE_ZONE_COUNT; ++zone) {
+        all_closed = all_closed && !s_ball_valve_open[zone] &&
+                     !s_solenoid_open[zone] && !s_ball_motor_moving[zone];
+    }
+    all_closed = all_closed && !s_main_pump_on;
+    portEXIT_CRITICAL(&s_state_mux);
+    return all_closed;
 }
