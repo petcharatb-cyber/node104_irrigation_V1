@@ -6,6 +6,7 @@
 
 #include "ds3231.h"
 #include "deep_sleep.h"
+#include "driver/gpio.h"
 #include "esp_log.h"
 #include "esp_sleep.h"
 #include "esp_timer.h"
@@ -22,6 +23,7 @@
 
 static const char *TAG = "app";
 #define TELEMETRY_UPLOAD_PERIOD_MS 5000
+#define GPIO19_MONITOR_PERIOD_MS 10000
 #define MAX_DEEP_SLEEP_TIMERS 8
 
 typedef struct {
@@ -37,6 +39,53 @@ static portMUX_TYPE s_power_schedule_mux = portMUX_INITIALIZER_UNLOCKED;
 static bool s_deep_sleep_enabled;
 static uint8_t s_deep_sleep_timer_count;
 static daily_sleep_timer_t s_deep_sleep_timers[MAX_DEEP_SLEEP_TIMERS];
+static bool s_gpio19_waiting_for_firebase;
+static bool s_gpio19_monitor_enabled;
+
+static void gpio19_monitor_task(void *argument)
+{
+    (void)argument;
+    const TickType_t monitor_period = pdMS_TO_TICKS(GPIO19_MONITOR_PERIOD_MS);
+    TickType_t last_wake_time = xTaskGetTickCount();
+
+    for (;;) {
+        vTaskDelayUntil(&last_wake_time, monitor_period);
+        const int level = gpio_get_level(GPIO_NUM_19);
+        ESP_LOGI(TAG, "GPIO19 status: %s (level %s, active-low)",
+                 level == 0 ? "ON" : "OFF",
+                 level == 0 ? "LOW" : "HIGH");
+    }
+}
+
+static void prepare_gpio19_for_deep_sleep_wake(uint32_t wakeup_causes)
+{
+    if ((wakeup_causes & (1U << ESP_SLEEP_WAKEUP_EXT1)) == 0) {
+        return;
+    }
+
+    esp_err_t err = gpio_set_level(GPIO_NUM_19, 1);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Could not set GPIO19 OFF before Firebase connection: %s",
+                 esp_err_to_name(err));
+        return;
+    }
+
+    const gpio_config_t config = {
+        .pin_bit_mask = 1ULL << GPIO_NUM_19,
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    err = gpio_config(&config);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Could not configure GPIO19 output: %s", esp_err_to_name(err));
+        return;
+    }
+
+    s_gpio19_waiting_for_firebase = true;
+    s_gpio19_monitor_enabled = true;
+}
 
 static bool parse_schedule_minute(const cJSON *value, uint16_t *minute_out)
 {
@@ -297,6 +346,17 @@ static void firebase_document_received(firebase_resource_t resource,
                                        const cJSON *document, void *context)
 {
     (void)context;
+
+    if (s_gpio19_waiting_for_firebase) {
+        const esp_err_t err = gpio_set_level(GPIO_NUM_19, 0);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Could not turn GPIO19 ON after Firebase connection: %s",
+                     esp_err_to_name(err));
+        } else {
+            s_gpio19_waiting_for_firebase = false;
+            ESP_LOGI(TAG, "GPIO19 turned ON after successful Firebase connection");
+        }
+    }
 
     const char *resource_name;
     switch (resource) {
@@ -583,6 +643,11 @@ static void firebase_telemetry_upload_task(void *arg)
 void app_main(void)
 {
     const uint32_t wakeup_causes = esp_sleep_get_wakeup_causes();
+    prepare_gpio19_for_deep_sleep_wake(wakeup_causes);
+    if (s_gpio19_monitor_enabled &&
+        xTaskCreate(gpio19_monitor_task, "gpio19_monitor", 2048, NULL, 2, NULL) != pdPASS) {
+        ESP_LOGE(TAG, "Could not create GPIO19 monitor task");
+    }
     esp_err_t err = ds3231_init(CONFIG_N100_I2C_SDA_GPIO, CONFIG_N100_I2C_SCL_GPIO);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "DS3231 initialization failed: %s", esp_err_to_name(err));
