@@ -270,6 +270,15 @@
         <span class="heading-icon amber" aria-hidden="true">◷</span>
         <div class="heading-copy"><h3 id="logic-title">Logic &amp; Multi-Timer Setting</h3><p>เลือก Manual Only หรือ Timer Only • ตั้งเวลาเปิด/ปิดซ้ำทุกวัน</p></div>
       </div>
+      <div class="subsection" style="margin-bottom:12px">
+        <h4>Solenoid Valve</h4>
+        <label class="check-row" for="solenoid-enabled">
+          <input id="solenoid-enabled" type="checkbox">
+          <span>เปิดใช้งานรีเลย์ Solenoid</span>
+        </label>
+        <p class="notice">เมื่อปิด ระบบจะไม่สั่งรีเลย์และไม่รอเวลาหน่วงปิด Solenoid • หากวาล์วแบบ Normally Closed ยังต่ออนุกรมอยู่ น้ำอาจไม่ไหล</p>
+        <button id="save-solenoid-settings" class="button blue small" type="button">บันทึกการตั้งค่า Solenoid</button>
+      </div>
       <div id="logic-grid" class="zone-grid"></div>
       <div class="inline-actions" style="margin-top:12px">
         <button id="save-logic" class="button blue" type="button">บันทึกการทำงานทั้งหมด</button>
@@ -454,6 +463,7 @@
         state.config = config && typeof config === "object" ? config : {};
         const sleepMode = state.config.system_power_mode === "deep_sleep";
         const statisticsEnabled = state.config.statistics_enabled !== false;
+        $("solenoid-enabled").checked = state.config.solenoid_enabled !== false;
         $("power-mode").value = sleepMode ? "deep_sleep" : "always_on";
         renderSleepSummary();
         const sleepHost = $("sleep-timers");
@@ -655,6 +665,14 @@
           zone_control[zone] = { mode, manual_overwrite_allowed: allow, timers };
         }
         patchConfig({ zone_control }, "บันทึกโหมดและ Multi-Timer แล้ว");
+      }
+      function saveSolenoidSettings() {
+        patchConfig(
+          { solenoid_enabled: $("solenoid-enabled").checked },
+          $("solenoid-enabled").checked
+            ? "เปิดใช้งาน Solenoid แล้ว"
+            : "ปิดใช้งาน Solenoid แล้ว"
+        );
       }
       function renderHistory(records) {
         state.history = records;
@@ -863,6 +881,7 @@
       $("add-sleep-timer").addEventListener("click",()=>addSleepRow());
       $("save-sleep-settings").addEventListener("click",saveSleepSettings);
       $("save-logic").addEventListener("click",saveLogic);
+      $("save-solenoid-settings").addEventListener("click",saveSolenoidSettings);
       $("reset-totals").addEventListener("click",resetTotals);
       $("toggle-recording").addEventListener("click",()=>setRecording(state.config.statistics_enabled===false));
       $("save-stat-settings").addEventListener("click",saveStatSettings);

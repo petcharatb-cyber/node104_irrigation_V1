@@ -50,6 +50,7 @@ static bool s_controller_ready;
 static bool s_main_pump_on;
 static bool s_force_all_closed;
 static bool s_flow_reset_command_applied;
+static bool s_solenoid_enabled = true;
 static bool s_zone_timer_mode[VALVE_ZONE_COUNT];
 static bool s_manual_overwrite_allowed[VALVE_ZONE_COUNT];
 static bool s_manual_override[VALVE_ZONE_COUNT];
@@ -212,16 +213,26 @@ static void set_zone_states(size_t zone, bool ball_open, bool solenoid_open)
 {
     portENTER_CRITICAL(&s_state_mux);
     s_ball_valve_open[zone] = ball_open;
-    s_solenoid_open[zone] = solenoid_open;
+    s_solenoid_open[zone] = solenoid_open && s_solenoid_enabled;
     portEXIT_CRITICAL(&s_state_mux);
 }
 
 static void set_solenoid_state(size_t zone, bool open)
 {
     portENTER_CRITICAL(&s_state_mux);
+    open = open && s_solenoid_enabled;
     s_solenoid_open[zone] = open;
     portEXIT_CRITICAL(&s_state_mux);
     relay_set(s_zone_gpios[zone].solenoid_gpio, open);
+}
+
+static bool solenoid_enabled(void)
+{
+    bool enabled;
+    portENTER_CRITICAL(&s_state_mux);
+    enabled = s_solenoid_enabled;
+    portEXIT_CRITICAL(&s_state_mux);
+    return enabled;
 }
 
 static uint32_t ball_valve_run_time_seconds(void)
@@ -322,11 +333,16 @@ static void publish_valve_status(void)
 
 static void finish_zone_close(size_t zone)
 {
-    const uint32_t delay_seconds = solenoid_close_delay_seconds();
+    const uint32_t delay_seconds =
+        solenoid_enabled() ? solenoid_close_delay_seconds() : 0;
     if (delay_seconds > 0) {
         ESP_LOGI(TAG, "Zone %c solenoid will close in %" PRIu32 " seconds",
                  'A' + (int)zone, delay_seconds);
-        vTaskDelay(pdMS_TO_TICKS(delay_seconds * 1000U));
+        const uint32_t delay_ms = delay_seconds * 1000U;
+        for (uint32_t elapsed_ms = 0; elapsed_ms < delay_ms && solenoid_enabled();
+             elapsed_ms += 100U) {
+            vTaskDelay(pdMS_TO_TICKS(100));
+        }
     }
     if (desired_open(zone)) {
         return;
@@ -622,6 +638,10 @@ esp_err_t valve_controller_apply_firebase_config(const cJSON *document)
                                    ? cJSON_GetObjectItemCaseSensitive(
                                          document, "solenoid_close_delay_seconds")
                                    : NULL;
+    const cJSON *solenoid_enabled_setting =
+        cJSON_IsObject(document)
+            ? cJSON_GetObjectItemCaseSensitive(document, "solenoid_enabled")
+            : NULL;
     if (run_time != NULL &&
         (!cJSON_IsNumber(run_time) || run_time->valuedouble < 1 ||
          run_time->valuedouble > 120 ||
@@ -636,6 +656,10 @@ esp_err_t valve_controller_apply_firebase_config(const cJSON *document)
         ESP_LOGE(TAG, "Firebase solenoid close delay must be from 0 to 300 seconds");
         return ESP_ERR_INVALID_ARG;
     }
+    if (solenoid_enabled_setting != NULL && !cJSON_IsBool(solenoid_enabled_setting)) {
+        ESP_LOGE(TAG, "Firebase solenoid_enabled must be boolean");
+        return ESP_ERR_INVALID_ARG;
+    }
 
     const uint32_t run_time_seconds =
         run_time != NULL ? (uint32_t)run_time->valuedouble
@@ -643,6 +667,8 @@ esp_err_t valve_controller_apply_firebase_config(const cJSON *document)
     const uint32_t close_delay_seconds =
         close_delay != NULL ? (uint32_t)close_delay->valuedouble
                             : CONFIG_N103_SOLENOID_CLOSE_DELAY_SECONDS;
+    const bool use_solenoid = solenoid_enabled_setting == NULL ||
+                              cJSON_IsTrue(solenoid_enabled_setting);
 
     bool timer_mode[VALVE_ZONE_COUNT];
     bool overwrite_allowed[VALVE_ZONE_COUNT];
@@ -736,7 +762,7 @@ esp_err_t valve_controller_apply_firebase_config(const cJSON *document)
         }
     }
 
-    if (run_time == NULL || close_delay == NULL) {
+    if (run_time == NULL || close_delay == NULL || solenoid_enabled_setting == NULL) {
         cJSON *defaults = cJSON_CreateObject();
         if (defaults == NULL) {
             return ESP_ERR_NO_MEM;
@@ -747,7 +773,9 @@ esp_err_t valve_controller_apply_firebase_config(const cJSON *document)
                                      run_time_seconds) != NULL) &&
             (close_delay != NULL ||
              cJSON_AddNumberToObject(defaults, "solenoid_close_delay_seconds",
-                                     close_delay_seconds) != NULL);
+                                     close_delay_seconds) != NULL) &&
+            (solenoid_enabled_setting != NULL ||
+             cJSON_AddBoolToObject(defaults, "solenoid_enabled", true) != NULL);
         if (!added) {
             cJSON_Delete(defaults);
             return ESP_ERR_NO_MEM;
@@ -763,10 +791,18 @@ esp_err_t valve_controller_apply_firebase_config(const cJSON *document)
         ESP_LOGI(TAG, "Initialized missing Firebase valve configuration defaults");
     }
 
+    bool solenoid_configuration_changed;
+    bool zone_open[VALVE_ZONE_COUNT];
     portENTER_CRITICAL(&s_state_mux);
+    solenoid_configuration_changed = s_solenoid_enabled != use_solenoid;
+    s_solenoid_enabled = use_solenoid;
     s_ball_valve_run_time_seconds = run_time_seconds;
     s_solenoid_close_delay_seconds = close_delay_seconds;
     for (size_t zone = 0; zone < VALVE_ZONE_COUNT; ++zone) {
+        zone_open[zone] = s_ball_valve_open[zone];
+        if (solenoid_configuration_changed) {
+            s_solenoid_open[zone] = use_solenoid && zone_open[zone];
+        }
         s_zone_timer_mode[zone] = timer_mode[zone];
         s_manual_overwrite_allowed[zone] = overwrite_allowed[zone];
         s_timer_count[zone] = timer_count[zone];
@@ -779,6 +815,16 @@ esp_err_t valve_controller_apply_firebase_config(const cJSON *document)
         }
     }
     portEXIT_CRITICAL(&s_state_mux);
+    if (solenoid_configuration_changed) {
+        for (size_t zone = 0; zone < VALVE_ZONE_COUNT; ++zone) {
+            const bool solenoid_open = use_solenoid && zone_open[zone];
+            relay_set(s_zone_gpios[zone].solenoid_gpio, solenoid_open);
+            set_zone_closed_for_leak_monitor(zone, !zone_open[zone] && !solenoid_open);
+        }
+        ESP_LOGI(TAG, "Solenoid valves %s by Firebase configuration",
+                 use_solenoid ? "enabled" : "disabled");
+        publish_valve_status();
+    }
     return ESP_OK;
 }
 
