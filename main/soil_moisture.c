@@ -13,21 +13,21 @@ static adc_channel_t s_adc_channel;
 
 esp_err_t soil_moisture_init(void)
 {
-    if (CONFIG_N100_SOIL_MOISTURE_DRY_RAW == CONFIG_N100_SOIL_MOISTURE_WET_RAW) {
+    if (CONFIG_N103_SOIL_MOISTURE_DRY_RAW == CONFIG_N103_SOIL_MOISTURE_WET_RAW) {
         ESP_LOGE(TAG, "Dry and saturated calibration values must differ");
         return ESP_ERR_INVALID_ARG;
     }
 
     adc_unit_t adc_unit;
-    esp_err_t err = adc_oneshot_io_to_channel(CONFIG_N100_SOIL_MOISTURE_GPIO,
+    esp_err_t err = adc_oneshot_io_to_channel(CONFIG_N103_SOIL_MOISTURE_GPIO,
                                                &adc_unit, &s_adc_channel);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "GPIO%d is not a valid ADC input: %s",
-                 CONFIG_N100_SOIL_MOISTURE_GPIO, esp_err_to_name(err));
+                 CONFIG_N103_SOIL_MOISTURE_GPIO, esp_err_to_name(err));
         return err;
     }
     if (adc_unit != ADC_UNIT_1) {
-        ESP_LOGE(TAG, "GPIO%d must map to ADC1", CONFIG_N100_SOIL_MOISTURE_GPIO);
+        ESP_LOGE(TAG, "GPIO%d must map to ADC1", CONFIG_N103_SOIL_MOISTURE_GPIO);
         return ESP_ERR_INVALID_ARG;
     }
 
@@ -51,10 +51,10 @@ esp_err_t soil_moisture_init(void)
     }
 
     ESP_LOGI(TAG, "AO configured on GPIO%d (ADC1)",
-             CONFIG_N100_SOIL_MOISTURE_GPIO);
+             CONFIG_N103_SOIL_MOISTURE_GPIO);
     ESP_LOGI(TAG, "Calibration raw values: dry=%d, saturated=%d",
-             CONFIG_N100_SOIL_MOISTURE_DRY_RAW,
-             CONFIG_N100_SOIL_MOISTURE_WET_RAW);
+             CONFIG_N103_SOIL_MOISTURE_DRY_RAW,
+             CONFIG_N103_SOIL_MOISTURE_WET_RAW);
     return ESP_OK;
 }
 
@@ -78,8 +78,8 @@ esp_err_t soil_moisture_read(soil_moisture_reading_t *reading)
     const int averaged_raw =
         (int)((raw_total + (SOIL_MOISTURE_SAMPLE_COUNT / 2)) /
               SOIL_MOISTURE_SAMPLE_COUNT);
-    const int32_t dry_raw = CONFIG_N100_SOIL_MOISTURE_DRY_RAW;
-    const int32_t saturated_raw = CONFIG_N100_SOIL_MOISTURE_WET_RAW;
+    const int32_t dry_raw = CONFIG_N103_SOIL_MOISTURE_DRY_RAW;
+    const int32_t saturated_raw = CONFIG_N103_SOIL_MOISTURE_WET_RAW;
     const int32_t raw_range = saturated_raw - dry_raw;
     int32_t percent = ((int32_t)averaged_raw - dry_raw) * 100 / raw_range;
 

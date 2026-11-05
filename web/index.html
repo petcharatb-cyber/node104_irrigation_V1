@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f5f8f7">
   <meta name="description" content="เข้าสู่ระบบ Irrigation Management System">
-  <title>เข้าสู่ระบบ | Node100 Irrigation</title>
+  <title>เข้าสู่ระบบ | Node103 Irrigation</title>
   <script defer src="/__/firebase/13.1.0/firebase-app-compat.js"></script>
   <script defer src="/__/firebase/13.1.0/firebase-auth-compat.js"></script>
   <style>
@@ -41,7 +41,7 @@
 </head>
 <body>
   <main class="auth-card">
-    <p class="brand">Node100 Irrigation</p>
+    <p class="brand">Node103 Irrigation</p>
     <h1>เข้าสู่ระบบ</h1>
     <p id="auth-status" class="description status" role="status">กำลังตรวจสอบสถานะการเข้าสู่ระบบ…</p>
     <form id="sign-in-form" class="sign-in-form" hidden>
@@ -98,7 +98,7 @@
         auth = firebase.auth();
         auth.onAuthStateChanged((user) => {
           if (user) {
-            window.location.replace("Node100_%20IMS_Master.html");
+            window.location.replace("Node103_%20IMS_Master.html");
             return;
           }
           status.hidden = true;

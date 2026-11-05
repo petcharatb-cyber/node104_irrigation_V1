@@ -31,14 +31,14 @@ typedef struct {
 } zone_gpio_t;
 
 static const zone_gpio_t s_zone_gpios[VALVE_ZONE_COUNT] = {
-    {CONFIG_N100_BALL_VALVE_A_OPEN_GPIO, CONFIG_N100_BALL_VALVE_A_CLOSE_GPIO,
-     CONFIG_N100_SOLENOID_A_GPIO},
-    {CONFIG_N100_BALL_VALVE_B_OPEN_GPIO, CONFIG_N100_BALL_VALVE_B_CLOSE_GPIO,
-     CONFIG_N100_SOLENOID_B_GPIO},
-    {CONFIG_N100_BALL_VALVE_C_OPEN_GPIO, CONFIG_N100_BALL_VALVE_C_CLOSE_GPIO,
-     CONFIG_N100_SOLENOID_C_GPIO},
+    {CONFIG_N103_BALL_VALVE_A_OPEN_GPIO, CONFIG_N103_BALL_VALVE_A_CLOSE_GPIO,
+     CONFIG_N103_SOLENOID_A_GPIO},
+    {CONFIG_N103_BALL_VALVE_B_OPEN_GPIO, CONFIG_N103_BALL_VALVE_B_CLOSE_GPIO,
+     CONFIG_N103_SOLENOID_B_GPIO},
+    {CONFIG_N103_BALL_VALVE_C_OPEN_GPIO, CONFIG_N103_BALL_VALVE_C_CLOSE_GPIO,
+     CONFIG_N103_SOLENOID_C_GPIO},
 };
-static const gpio_num_t s_pump_gpio = CONFIG_N100_MAIN_PUMP_RELAY_GPIO;
+static const gpio_num_t s_pump_gpio = CONFIG_N103_MAIN_PUMP_RELAY_GPIO;
 static const char *const s_zone_names[VALVE_ZONE_COUNT] = {"zone_a", "zone_b", "zone_c"};
 static portMUX_TYPE s_state_mux = portMUX_INITIALIZER_UNLOCKED;
 static bool s_desired_open[VALVE_ZONE_COUNT];
@@ -57,9 +57,9 @@ static uint8_t s_timer_count[VALVE_ZONE_COUNT];
 static uint16_t s_timer_open_minute[VALVE_ZONE_COUNT][VALVE_MAX_TIMER_INTERVALS];
 static uint16_t s_timer_close_minute[VALVE_ZONE_COUNT][VALVE_MAX_TIMER_INTERVALS];
 static uint32_t s_ball_valve_run_time_seconds =
-    CONFIG_N100_BALL_VALVE_RUN_TIME_SECONDS;
+    CONFIG_N103_BALL_VALVE_RUN_TIME_SECONDS;
 static uint32_t s_solenoid_close_delay_seconds =
-    CONFIG_N100_SOLENOID_CLOSE_DELAY_SECONDS;
+    CONFIG_N103_SOLENOID_CLOSE_DELAY_SECONDS;
 
 static bool parse_clock_minute(const cJSON *value, uint16_t *minute_out)
 {
@@ -152,14 +152,14 @@ static esp_err_t validate_output_gpios(void)
     for (size_t index = 0; index < output_count; ++index) {
         const gpio_num_t gpio = output_gpios[index];
         if (!GPIO_IS_VALID_GPIO(gpio) ||
-            gpio == CONFIG_N100_I2C_SDA_GPIO ||
-            gpio == CONFIG_N100_I2C_SCL_GPIO ||
-            gpio == CONFIG_N100_RTC_INT_GPIO ||
-            gpio == CONFIG_N100_SOIL_MOISTURE_GPIO ||
-            gpio == CONFIG_N100_FLOW_ZONE_A_GPIO ||
-            gpio == CONFIG_N100_FLOW_ZONE_B_GPIO ||
-            gpio == CONFIG_N100_FLOW_ZONE_C_GPIO ||
-            gpio == CONFIG_N100_FLOW_MAIN_GPIO) {
+            gpio == CONFIG_N103_I2C_SDA_GPIO ||
+            gpio == CONFIG_N103_I2C_SCL_GPIO ||
+            gpio == CONFIG_N103_RTC_INT_GPIO ||
+            gpio == CONFIG_N103_SOIL_MOISTURE_GPIO ||
+            gpio == CONFIG_N103_FLOW_ZONE_A_GPIO ||
+            gpio == CONFIG_N103_FLOW_ZONE_B_GPIO ||
+            gpio == CONFIG_N103_FLOW_ZONE_C_GPIO ||
+            gpio == CONFIG_N103_FLOW_MAIN_GPIO) {
             ESP_LOGE(TAG, "Relay GPIO%d is invalid or already assigned", gpio);
             return ESP_ERR_INVALID_ARG;
         }
@@ -456,28 +456,50 @@ esp_err_t valve_controller_init(void)
     return ESP_OK;
 }
 
-esp_err_t valve_controller_initialize_firebase_commands(void)
+esp_err_t valve_controller_initialize_firebase_commands(const cJSON *document)
 {
+    const bool document_is_missing = document == NULL || cJSON_IsNull(document);
+    if (!document_is_missing && !cJSON_IsObject(document)) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
     cJSON *commands = cJSON_CreateObject();
     if (commands == NULL) {
         return ESP_ERR_NO_MEM;
     }
 
-    const bool added =
-        cJSON_AddBoolToObject(commands, "zone_a", false) != NULL &&
-        cJSON_AddBoolToObject(commands, "zone_b", false) != NULL &&
-        cJSON_AddBoolToObject(commands, "zone_c", false) != NULL;
-    if (!added) {
-        cJSON_Delete(commands);
-        return ESP_ERR_NO_MEM;
+    static const char *const command_names[] = {
+        "zone_a",
+        "zone_b",
+        "zone_c",
+        "manual_override_zone_a",
+        "manual_override_zone_b",
+        "manual_override_zone_c",
+        "reset_flow_totals",
+    };
+    for (size_t index = 0;
+         index < sizeof(command_names) / sizeof(command_names[0]); ++index) {
+        if ((document_is_missing ||
+             cJSON_GetObjectItemCaseSensitive(document, command_names[index]) == NULL) &&
+            cJSON_AddBoolToObject(commands, command_names[index], false) == NULL) {
+            cJSON_Delete(commands);
+            return ESP_ERR_NO_MEM;
+        }
     }
 
-    const esp_err_t err = firebase_client_put(FIREBASE_RESOURCE_COMMANDS, commands);
+    if (commands->child == NULL) {
+        cJSON_Delete(commands);
+        return ESP_OK;
+    }
+
+    const esp_err_t err = document_is_missing
+                              ? firebase_client_put(FIREBASE_RESOURCE_COMMANDS, commands)
+                              : firebase_client_patch(FIREBASE_RESOURCE_COMMANDS, commands);
     cJSON_Delete(commands);
     if (err == ESP_OK) {
-        ESP_LOGI(TAG, "Created default Firebase commands with all zones closed");
+        ESP_LOGI(TAG, "Initialized missing Firebase command defaults");
     } else {
-        ESP_LOGE(TAG, "Could not initialize Firebase commands: %s",
+        ESP_LOGE(TAG, "Could not initialize Firebase command defaults: %s",
                  esp_err_to_name(err));
     }
     return err;
@@ -617,10 +639,10 @@ esp_err_t valve_controller_apply_firebase_config(const cJSON *document)
 
     const uint32_t run_time_seconds =
         run_time != NULL ? (uint32_t)run_time->valuedouble
-                         : CONFIG_N100_BALL_VALVE_RUN_TIME_SECONDS;
+                         : CONFIG_N103_BALL_VALVE_RUN_TIME_SECONDS;
     const uint32_t close_delay_seconds =
         close_delay != NULL ? (uint32_t)close_delay->valuedouble
-                            : CONFIG_N100_SOLENOID_CLOSE_DELAY_SECONDS;
+                            : CONFIG_N103_SOLENOID_CLOSE_DELAY_SECONDS;
 
     bool timer_mode[VALVE_ZONE_COUNT];
     bool overwrite_allowed[VALVE_ZONE_COUNT];

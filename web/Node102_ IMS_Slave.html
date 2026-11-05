@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f3f7f6">
-  <meta name="description" content="Node100 Irrigation dashboard and controls">
+  <meta name="description" content="Node102 Irrigation dashboard and controls">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <link rel="manifest" href="./node101-manifest.json">
-  <link rel="icon" href="./node101-icon.svg" type="image/svg+xml">
-  <title>Node100 Irrigation | Node101</title>
+  <link rel="manifest" href="./node102-manifest.json">
+  <link rel="icon" href="./node102-icon.svg" type="image/svg+xml">
+  <title>Node102 Irrigation | Node102</title>
   <script defer src="/__/firebase/13.1.0/firebase-app-compat.js"></script>
   <script defer src="/__/firebase/13.1.0/firebase-auth-compat.js"></script>
   <script defer src="/__/firebase/13.1.0/firebase-database-compat.js"></script>
@@ -181,7 +181,7 @@
 <body>
   <header class="topbar">
     <div class="brand">
-      <h1>Node100 Irrigation</h1>
+      <h1>Node102 Irrigation</h1>
       <p><span id="clock-dot" class="clock-dot"></span><time id="device-clock">รอเวลา DS3231…</time></p>
     </div>
     <div class="board-links" aria-live="polite">
@@ -201,7 +201,7 @@
 
   <main id="main" hidden>
     <div class="page-intro">
-      <div><p class="eyebrow">Node100 • Smart Garden</p><h2>Irrigation Dashboard</h2></div>
+      <div><p class="eyebrow">Node102 • Smart Garden</p><h2>Irrigation Dashboard</h2></div>
       <span id="last-update" class="last-update">รอข้อมูลจากอุปกรณ์</span>
     </div>
 
@@ -300,7 +300,7 @@
         <article class="chart-card"><h4>Water per session</h4><p>ปริมาณน้ำต่อรอบ (ลิตร) แยกตาม Zone</p><div class="chart-wrap"><canvas id="chart-session-water" aria-label="กราฟปริมาณน้ำต่อรอบ"></canvas></div></article>
         <article class="chart-card"><h4>Accumulated water &amp; relay state</h4><p>น้ำสะสม (ลิตร) และสถานะวาล์ว/ปั๊ม (0=ปิด, 1=เปิด)</p><div class="chart-wrap"><canvas id="chart-totals" aria-label="กราฟน้ำสะสมและสถานะรีเลย์"></canvas></div></article>
       </div>
-      <p class="notice">การล้างสถิติจะลบข้อมูลทั้งหมดใน node100/history สำหรับทุกผู้ใช้ และต้องยืนยันก่อนดำเนินการ • สถานะรีเลย์เป็นสถานะซอฟต์แวร์ ไม่มี feedback ยืนยันตำแหน่งวาล์วจริง</p>
+      <p class="notice">การล้างสถิติจะลบข้อมูลทั้งหมดใน node102/history สำหรับทุกผู้ใช้ และต้องยืนยันก่อนดำเนินการ • สถานะรีเลย์เป็นสถานะซอฟต์แวร์ ไม่มี feedback ยืนยันตำแหน่งวาล์วจริง</p>
     </section>
   </main>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
@@ -459,7 +459,6 @@
         sleepHost.replaceChildren();
         const sleeps = Array.isArray(state.config.deep_sleep_timers) ? state.config.deep_sleep_timers : [];
         if (sleeps.length) sleeps.forEach((item) => addSleepRow(item.sleep_at || "22:00", item.wake_at || "06:00"));
-        else addSleepRow();
         $("sample-interval").value = Number.isInteger(state.config.statistics_interval_minutes) ? state.config.statistics_interval_minutes : 5;
         $("toggle-recording").textContent = state.config.statistics_enabled === true ? "หยุดเก็บข้อมูล" : "เริ่มเก็บข้อมูล";
         $("toggle-recording").classList.toggle("green", state.config.statistics_enabled === true);
@@ -613,13 +612,13 @@
         const update = { [zone]: !current };
         if (mode === "timer_only") update["manual_override_" + zone] = true;
         try {
-          await state.db.ref("node100/commands").update(update);
+          await state.db.ref("node102/commands").update(update);
           toast("ส่งคำสั่ง " + flowTitles[zone] + " แล้ว");
         } catch (error) { console.error("Zone command update failed.", error); toast("ส่งคำสั่งไม่สำเร็จ ตรวจสอบ Firebase Rules"); }
       }
       async function setAuto(zone) {
         try {
-          await state.db.ref("node100/commands/manual_override_" + zone).set(false);
+          await state.db.ref("node102/commands/manual_override_" + zone).set(false);
           toast("คืนการควบคุม " + flowTitles[zone] + " ให้ Timer แล้ว");
         } catch (error) { console.error("Return-to-auto command failed.", error); toast("คืนค่า Auto ไม่สำเร็จ ตรวจสอบ Firebase Rules"); }
       }
@@ -632,7 +631,7 @@
       async function patchConfig(values, success) {
         if (!state.connected || !state.db) { toast("Firebase ไม่เชื่อมต่อ"); return; }
         try {
-          await state.db.ref("node100_config").update(values);
+          await state.db.ref("node102_config").update(values);
           toast(success);
         } catch (error) { console.error("Config update failed.", error); toast("บันทึกไม่สำเร็จ ตรวจสอบ Firebase Rules"); }
       }
@@ -755,14 +754,14 @@
         [...state.history].sort((a,b) => (a.timestamp||0)-(b.timestamp||0)).forEach((record) => rows.push(columns.map((key) => csvCell(record[key])).join(",")));
         const blob = new Blob(["\uFEFF" + rows.join("\r\n")], {type:"text/csv;charset=utf-8"});
         const url = URL.createObjectURL(blob);
-        const link = document.createElement("a"); link.href=url; link.download="node100-statistics.csv"; link.click();
+        const link = document.createElement("a"); link.href=url; link.download="node102-statistics.csv"; link.click();
         URL.revokeObjectURL(url);
       }
       async function resetTotals() {
         if (!state.connected || !state.db) { toast("Firebase ไม่เชื่อมต่อ"); return; }
         if (!window.confirm("ยืนยันเริ่มนับปริมาณน้ำสะสมใหม่เป็น 0 ทั้ง 4 จุดหรือไม่?")) return;
         try {
-          await state.db.ref("node100/commands/reset_flow_totals").set(true);
+          await state.db.ref("node102/commands/reset_flow_totals").set(true);
           toast("ส่งคำขอ Reset แล้ว รอ ESP32 ยืนยัน");
         } catch (error) { console.error("Flow total reset request failed.",error); toast("ส่งคำขอ Reset ไม่สำเร็จ ตรวจสอบ Firebase Rules"); }
       }
@@ -776,8 +775,8 @@
       }
       async function clearHistory() {
         if (!state.connected || !state.db) { toast("Firebase ไม่เชื่อมต่อ"); return; }
-        if (!window.confirm("การล้างนี้จะลบ node100/history ทั้งหมดและมีผลกับทุกอุปกรณ์ ยืนยันลบหรือไม่?")) return;
-        try { await state.db.ref("node100/history").remove(); toast("ล้างประวัติสถิติแล้ว"); }
+        if (!window.confirm("การล้างนี้จะลบ node102/history ทั้งหมดและมีผลกับทุกอุปกรณ์ Node102 ยืนยันลบหรือไม่?")) return;
+        try { await state.db.ref("node102/history").remove(); toast("ล้างประวัติสถิติของ Node102 แล้ว"); }
         catch (error) { console.error("Firebase history clear failed.",error); toast("ล้างข้อมูลไม่สำเร็จ ตรวจสอบ Firebase Rules"); }
       }
       function attachDatabaseListeners() {
@@ -796,11 +795,11 @@
               setBoard(age >= -30000 && age < 20000);
             }
           },(error) => { console.error("Firebase server time offset listener failed.",error); });
-          state.db.ref("node100/telemetry").on("value",(snap) => updateTelemetry(snap.val()),(error) => { console.error("Telemetry read failed.",error); toast("อ่าน telemetry ไม่ได้ ตรวจสอบ Firebase Rules"); });
-          state.db.ref("node100/status").on("value",(snap) => { state.status=snap.val()||null; renderControls(); renderSleepSummary(); },(error) => { console.error("Status read failed.",error); toast("อ่านสถานะอุปกรณ์ไม่ได้ ตรวจสอบ Firebase Rules"); });
-          state.db.ref("node100/commands").on("value",(snap) => { state.commands=snap.val()||{}; renderControls(); },(error) => { console.error("Commands read failed.",error); toast("อ่านคำสั่งไม่ได้ ตรวจสอบ Firebase Rules"); });
-          state.db.ref("node100_config").on("value",(snap) => renderConfig(snap.val()),(error) => { console.error("Config read failed.",error); toast("อ่านค่าตั้งไม่ได้ ตรวจสอบ Firebase Rules"); });
-          state.db.ref("node100/history").on("value",(snap) => {
+          state.db.ref("node102/telemetry").on("value",(snap) => updateTelemetry(snap.val()),(error) => { console.error("Telemetry read failed.",error); toast("อ่าน telemetry ไม่ได้ ตรวจสอบ Firebase Rules"); });
+          state.db.ref("node102/status").on("value",(snap) => { state.status=snap.val()||null; renderControls(); renderSleepSummary(); },(error) => { console.error("Status read failed.",error); toast("อ่านสถานะอุปกรณ์ไม่ได้ ตรวจสอบ Firebase Rules"); });
+          state.db.ref("node102/commands").on("value",(snap) => { state.commands=snap.val()||{}; renderControls(); },(error) => { console.error("Commands read failed.",error); toast("อ่านคำสั่งไม่ได้ ตรวจสอบ Firebase Rules"); });
+          state.db.ref("node102_config").on("value",(snap) => renderConfig(snap.val()),(error) => { console.error("Config read failed.",error); toast("อ่านค่าตั้งไม่ได้ ตรวจสอบ Firebase Rules"); });
+          state.db.ref("node102/history").on("value",(snap) => {
             const value=snap.val()||{};
             const records=Object.entries(value).map(([key,item])=>({...item,_key:key,timestamp:Date.parse(item.rtc_date+"T"+item.rtc_time+"+07:00")||0}));
             renderHistory(records);
@@ -828,7 +827,7 @@
               attachDatabaseListeners();
             } else {
               if (state.db) {
-                [".info/connected", ".info/serverTimeOffset", "node100/telemetry", "node100/status", "node100/commands", "node100_config", "node100/history"]
+                [".info/connected", ".info/serverTimeOffset", "node102/telemetry", "node102/status", "node102/commands", "node102_config", "node102/history"]
                   .forEach((path) => state.db.ref(path).off());
               }
               state.db = null;

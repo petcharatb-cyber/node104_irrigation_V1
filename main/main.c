@@ -32,7 +32,7 @@ typedef struct {
 } daily_sleep_timer_t;
 
 static portMUX_TYPE s_statistics_mux = portMUX_INITIALIZER_UNLOCKED;
-static bool s_statistics_enabled;
+static bool s_statistics_enabled = true;
 static uint32_t s_statistics_interval_minutes = 5;
 static int64_t s_statistics_last_sample_us;
 static portMUX_TYPE s_power_schedule_mux = portMUX_INITIALIZER_UNLOCKED;
@@ -322,6 +322,47 @@ static esp_err_t apply_statistics_config(const cJSON *document)
     return ESP_OK;
 }
 
+static esp_err_t initialize_statistics_defaults(const cJSON *document)
+{
+    if (document != NULL && !cJSON_IsNull(document) && !cJSON_IsObject(document)) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    cJSON *defaults = cJSON_CreateObject();
+    if (defaults == NULL) {
+        return ESP_ERR_NO_MEM;
+    }
+
+    const bool add_enabled =
+        cJSON_IsNull(document) ||
+        cJSON_GetObjectItemCaseSensitive(document, "statistics_enabled") == NULL;
+    const bool add_interval =
+        cJSON_IsNull(document) ||
+        cJSON_GetObjectItemCaseSensitive(document,
+                                          "statistics_interval_minutes") == NULL;
+    if ((add_enabled &&
+         cJSON_AddBoolToObject(defaults, "statistics_enabled", true) == NULL) ||
+        (add_interval &&
+         cJSON_AddNumberToObject(defaults, "statistics_interval_minutes", 5) == NULL)) {
+        cJSON_Delete(defaults);
+        return ESP_ERR_NO_MEM;
+    }
+    if (defaults->child == NULL) {
+        cJSON_Delete(defaults);
+        return ESP_OK;
+    }
+
+    const esp_err_t err = firebase_client_patch(FIREBASE_RESOURCE_CONFIG, defaults);
+    cJSON_Delete(defaults);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Could not initialize Firebase statistics defaults: %s",
+                 esp_err_to_name(err));
+    } else {
+        ESP_LOGI(TAG, "Initialized missing Firebase statistics settings");
+    }
+    return err;
+}
+
 static bool statistics_sample_due(int64_t now_us)
 {
     bool due = false;
@@ -381,6 +422,21 @@ static void firebase_document_received(firebase_resource_t resource,
         if ((resource == FIREBASE_RESOURCE_CONFIG ||
              resource == FIREBASE_RESOURCE_COMMANDS) &&
             cJSON_IsObject(document)) {
+            if (resource == FIREBASE_RESOURCE_COMMANDS) {
+                const esp_err_t defaults_err =
+                    valve_controller_initialize_firebase_commands(document);
+                if (defaults_err != ESP_OK) {
+                    ESP_LOGE(TAG, "Could not complete default Firebase commands: %s",
+                             esp_err_to_name(defaults_err));
+                }
+            } else {
+                const esp_err_t defaults_err =
+                    initialize_statistics_defaults(document);
+                if (defaults_err != ESP_OK) {
+                    ESP_LOGE(TAG, "Could not initialize missing statistics settings: %s",
+                             esp_err_to_name(defaults_err));
+                }
+            }
             const esp_err_t err = resource == FIREBASE_RESOURCE_COMMANDS
                                       ? valve_controller_apply_firebase_commands(document)
                                       : valve_controller_apply_firebase_config(document);
@@ -403,7 +459,8 @@ static void firebase_document_received(firebase_resource_t resource,
         }
     } else if (cJSON_IsNull(document)) {
         if (resource == FIREBASE_RESOURCE_COMMANDS) {
-            const esp_err_t err = valve_controller_initialize_firebase_commands();
+            const esp_err_t err =
+                valve_controller_initialize_firebase_commands(document);
             if (err != ESP_OK) {
                 ESP_LOGE(TAG, "Could not create default Firebase commands: %s",
                          esp_err_to_name(err));
@@ -413,6 +470,12 @@ static void firebase_document_received(firebase_resource_t resource,
             if (err != ESP_OK) {
                 ESP_LOGE(TAG, "Could not initialize Firebase valve config: %s",
                          esp_err_to_name(err));
+            }
+            const esp_err_t defaults_err =
+                initialize_statistics_defaults(document);
+            if (defaults_err != ESP_OK) {
+                ESP_LOGE(TAG, "Could not initialize Firebase statistics defaults: %s",
+                                 esp_err_to_name(defaults_err));
             }
             const esp_err_t statistics_err = apply_statistics_config(document);
             if (statistics_err != ESP_OK) {
@@ -601,8 +664,12 @@ static void firebase_telemetry_upload_task(void *arg)
                     }
 
                     const int64_t sample_time_us = esp_timer_get_time();
-                    if (flow_err == ESP_OK &&
-                        statistics_sample_due(sample_time_us)) {
+                    const bool sample_due = statistics_sample_due(sample_time_us);
+                    if (sample_due && flow_err != ESP_OK) {
+                        ESP_LOGE(TAG, "Firebase history sample is due, but flow readings "
+                                      "are unavailable: %s",
+                                 esp_err_to_name(flow_err));
+                    } else if (sample_due) {
                         const bool history_fields_added =
                             cJSON_AddNumberToObject(document, "total_zone_a_liters",
                                                     flow_reading.zone_a.cumulative_liters) != NULL &&
@@ -648,7 +715,7 @@ void app_main(void)
         xTaskCreate(gpio19_monitor_task, "gpio19_monitor", 2048, NULL, 2, NULL) != pdPASS) {
         ESP_LOGE(TAG, "Could not create GPIO19 monitor task");
     }
-    esp_err_t err = ds3231_init(CONFIG_N100_I2C_SDA_GPIO, CONFIG_N100_I2C_SCL_GPIO);
+    esp_err_t err = ds3231_init(CONFIG_N103_I2C_SDA_GPIO, CONFIG_N103_I2C_SCL_GPIO);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "DS3231 initialization failed: %s", esp_err_to_name(err));
         return;
@@ -687,7 +754,7 @@ void app_main(void)
         return;
     }
 
-    err = wifi_manager_init(CONFIG_N100_WIFI_SSID, CONFIG_N100_WIFI_PASSWORD);
+    err = wifi_manager_init(CONFIG_N103_WIFI_SSID, CONFIG_N103_WIFI_PASSWORD);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Wi-Fi initialization failed: %s", esp_err_to_name(err));
         return;

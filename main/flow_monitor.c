@@ -27,10 +27,10 @@ typedef struct {
 
 static flow_counter_t s_counters[FLOW_SENSOR_COUNT];
 static const gpio_num_t s_flow_gpios[FLOW_SENSOR_COUNT] = {
-    CONFIG_N100_FLOW_ZONE_A_GPIO,
-    CONFIG_N100_FLOW_ZONE_B_GPIO,
-    CONFIG_N100_FLOW_ZONE_C_GPIO,
-    CONFIG_N100_FLOW_MAIN_GPIO,
+    CONFIG_N103_FLOW_ZONE_A_GPIO,
+    CONFIG_N103_FLOW_ZONE_B_GPIO,
+    CONFIG_N103_FLOW_ZONE_C_GPIO,
+    CONFIG_N103_FLOW_MAIN_GPIO,
 };
 static portMUX_TYPE s_flow_mux = portMUX_INITIALIZER_UNLOCKED;
 static bool s_initialized;
@@ -109,10 +109,10 @@ esp_err_t flow_monitor_init(void)
     for (size_t index = 0; index < FLOW_SENSOR_COUNT; ++index) {
         const gpio_num_t gpio = s_flow_gpios[index];
         if (!GPIO_IS_VALID_GPIO(gpio) ||
-            gpio == CONFIG_N100_I2C_SDA_GPIO ||
-            gpio == CONFIG_N100_I2C_SCL_GPIO ||
-            gpio == CONFIG_N100_RTC_INT_GPIO ||
-            gpio == CONFIG_N100_SOIL_MOISTURE_GPIO) {
+            gpio == CONFIG_N103_I2C_SDA_GPIO ||
+            gpio == CONFIG_N103_I2C_SCL_GPIO ||
+            gpio == CONFIG_N103_RTC_INT_GPIO ||
+            gpio == CONFIG_N103_SOIL_MOISTURE_GPIO) {
             ESP_LOGE(TAG, "Flow sensor GPIO%d is invalid or already in use", gpio);
             return ESP_ERR_INVALID_ARG;
         }
@@ -186,7 +186,7 @@ esp_err_t flow_monitor_init(void)
     ESP_LOGI(TAG, "Flow sensors initialized on GPIO%d, GPIO%d, GPIO%d, GPIO%d",
              s_flow_gpios[0], s_flow_gpios[1], s_flow_gpios[2], s_flow_gpios[3]);
     ESP_LOGI(TAG, "Flow calibration: %d pulses/L",
-             CONFIG_N100_FLOW_PULSES_PER_LITER);
+             CONFIG_N103_FLOW_PULSES_PER_LITER);
     return ESP_OK;
 }
 
@@ -233,7 +233,7 @@ static void set_counter_active(size_t index, bool active)
     } else if (!active && counter->active) {
         const uint32_t pulses = counter->pulse_count - counter->session_start_pulses;
         counter->last_session_liters =
-            (float)((double)pulses / CONFIG_N100_FLOW_PULSES_PER_LITER);
+            (float)((double)pulses / CONFIG_N103_FLOW_PULSES_PER_LITER);
         persist_total = true;
     }
     counter->active = active;
@@ -305,7 +305,7 @@ esp_err_t flow_monitor_reset_totals(void)
 esp_err_t flow_monitor_read(flow_monitor_reading_t *reading)
 {
     if (reading == NULL || !s_initialized ||
-        CONFIG_N100_FLOW_PULSES_PER_LITER <= 0) {
+        CONFIG_N103_FLOW_PULSES_PER_LITER <= 0) {
         return ESP_ERR_INVALID_ARG;
     }
 
@@ -353,26 +353,26 @@ esp_err_t flow_monitor_read(flow_monitor_reading_t *reading)
 
         sensor_readings[index]->pulses_in_interval = pulse_delta;
         sensor_readings[index]->liters_in_interval =
-            (float)((double)pulse_delta / CONFIG_N100_FLOW_PULSES_PER_LITER);
+            (float)((double)pulse_delta / CONFIG_N103_FLOW_PULSES_PER_LITER);
         sensor_readings[index]->cumulative_liters =
             (float)((double)(total_pulses[index] +
                              (uint32_t)(pulse_counts[index] - persisted_bases[index])) /
-                    CONFIG_N100_FLOW_PULSES_PER_LITER);
+                    CONFIG_N103_FLOW_PULSES_PER_LITER);
         sensor_readings[index]->last_session_liters = last_session_liters[index];
         sensor_readings[index]->liters_per_minute =
             (float)((double)pulse_delta * 60.0 /
-                    ((double)CONFIG_N100_FLOW_PULSES_PER_LITER * elapsed_seconds));
+                    ((double)CONFIG_N103_FLOW_PULSES_PER_LITER * elapsed_seconds));
         if (index < 3) {
             const int64_t leak_start_us =
                 zone_valves_closed_since_us[index] +
-                (int64_t)CONFIG_N100_LEAK_GRACE_PERIOD_MS * 1000;
+                (int64_t)CONFIG_N103_LEAK_GRACE_PERIOD_MS * 1000;
             sensor_readings[index]->leak_detected =
                 zone_valves_closed[index] && pulse_delta > 0 &&
                 last_pulse_us[index] >= leak_start_us;
         } else {
             const int64_t leak_start_us =
                 all_zones_closed_since_us +
-                (int64_t)CONFIG_N100_LEAK_GRACE_PERIOD_MS * 1000;
+                (int64_t)CONFIG_N103_LEAK_GRACE_PERIOD_MS * 1000;
             sensor_readings[index]->leak_detected =
                 all_zones_closed && pulse_delta > 0 &&
                 last_pulse_us[index] >= leak_start_us;
@@ -385,7 +385,7 @@ esp_err_t flow_monitor_read(flow_monitor_reading_t *reading)
     for (size_t index = 0; index < FLOW_SENSOR_COUNT; ++index) {
         const uint32_t unsaved_pulses =
             (uint32_t)(pulse_counts[index] - persisted_bases[index]);
-        if (unsaved_pulses < (uint32_t)CONFIG_N100_FLOW_PULSES_PER_LITER) {
+        if (unsaved_pulses < (uint32_t)CONFIG_N103_FLOW_PULSES_PER_LITER) {
             continue;
         }
         const esp_err_t persist_err = persist_counter_total(index);

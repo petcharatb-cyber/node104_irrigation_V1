@@ -1,0 +1,19 @@
+{
+  "id": "./Node102_%20IMS_Slave.html",
+  "name": "Node102 Irrigation",
+  "short_name": "Node102",
+  "description": "Node102 Irrigation dashboard and controls",
+  "start_url": "./Node102_%20IMS_Slave.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f3f7f6",
+  "theme_color": "#f3f7f6",
+  "icons": [
+    {
+      "src": "./node102-icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

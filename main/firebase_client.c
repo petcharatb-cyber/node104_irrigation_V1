@@ -39,15 +39,15 @@ static const char *resource_path(firebase_resource_t resource)
 {
     switch (resource) {
     case FIREBASE_RESOURCE_TELEMETRY:
-        return CONFIG_N100_FIREBASE_TELEMETRY_PATH;
+        return CONFIG_N103_FIREBASE_TELEMETRY_PATH;
     case FIREBASE_RESOURCE_STATUS:
-        return CONFIG_N100_FIREBASE_STATUS_PATH;
+        return CONFIG_N103_FIREBASE_STATUS_PATH;
     case FIREBASE_RESOURCE_COMMANDS:
-        return CONFIG_N100_FIREBASE_COMMANDS_PATH;
+        return CONFIG_N103_FIREBASE_COMMANDS_PATH;
     case FIREBASE_RESOURCE_CONFIG:
-        return CONFIG_N100_FIREBASE_CONFIG_PATH;
+        return CONFIG_N103_FIREBASE_CONFIG_PATH;
     case FIREBASE_RESOURCE_HISTORY:
-        return CONFIG_N100_FIREBASE_HISTORY_PATH;
+        return CONFIG_N103_FIREBASE_HISTORY_PATH;
     default:
         return NULL;
     }
@@ -81,19 +81,19 @@ static const char *resource_name(firebase_resource_t resource)
 
 static bool auth_token_is_url(void)
 {
-    return strncmp(CONFIG_N100_FIREBASE_AUTH_TOKEN, "https://",
+    return strncmp(CONFIG_N103_FIREBASE_AUTH_TOKEN, "https://",
                    sizeof("https://") - 1) == 0 ||
-           strncmp(CONFIG_N100_FIREBASE_AUTH_TOKEN, "http://",
+           strncmp(CONFIG_N103_FIREBASE_AUTH_TOKEN, "http://",
                    sizeof("http://") - 1) == 0;
 }
 
 static esp_err_t get_auth_value(auth_value_t *auth)
 {
-    if (auth == NULL || CONFIG_N100_FIREBASE_AUTH_TOKEN[0] == '\0') {
+    if (auth == NULL || CONFIG_N103_FIREBASE_AUTH_TOKEN[0] == '\0') {
         return ESP_ERR_INVALID_ARG;
     }
 
-    const char *configured_value = CONFIG_N100_FIREBASE_AUTH_TOKEN;
+    const char *configured_value = CONFIG_N103_FIREBASE_AUTH_TOKEN;
     if (!auth_token_is_url()) {
         auth->value = configured_value;
         auth->length = strlen(configured_value);
@@ -106,7 +106,7 @@ static esp_err_t get_auth_value(auth_value_t *auth)
         return ESP_ERR_INVALID_ARG;
     }
 
-    const char *database_url = CONFIG_N100_FIREBASE_DATABASE_URL;
+    const char *database_url = CONFIG_N103_FIREBASE_DATABASE_URL;
     if (strncmp(database_url, "https://", sizeof("https://") - 1) != 0) {
         ESP_LOGE(TAG, "Firebase database URL must use HTTPS");
         return ESP_ERR_INVALID_ARG;
@@ -225,7 +225,7 @@ static esp_err_t build_resource_url(firebase_resource_t resource, char **url_out
     }
     size_t path_length = strlen(path);
 
-    const char *base_url = CONFIG_N100_FIREBASE_DATABASE_URL;
+    const char *base_url = CONFIG_N103_FIREBASE_DATABASE_URL;
     const size_t base_length = strlen(base_url);
     if (strncmp(base_url, "https://", sizeof("https://") - 1) != 0 ||
         base_length == sizeof("https://") - 1 ||
@@ -246,7 +246,7 @@ static esp_err_t build_resource_url(firebase_resource_t resource, char **url_out
     }
     const bool use_query_auth =
         auth.from_url
-#ifdef CONFIG_N100_FIREBASE_AUTH_QUERY
+#ifdef CONFIG_N103_FIREBASE_AUTH_QUERY
         || true
 #endif
         ;
@@ -329,7 +329,7 @@ static esp_err_t perform_request(firebase_resource_t resource,
     if (response_length != NULL) {
         *response_length = 0;
     }
-    if (CONFIG_N100_FIREBASE_AUTH_TOKEN[0] == '\0') {
+    if (CONFIG_N103_FIREBASE_AUTH_TOKEN[0] == '\0') {
         ESP_LOGE(TAG, "Firebase auth token is not configured");
         return ESP_ERR_INVALID_STATE;
     }
@@ -372,7 +372,7 @@ static esp_err_t perform_request(firebase_resource_t resource,
         return ESP_ERR_NO_MEM;
     }
 
-#ifdef CONFIG_N100_FIREBASE_AUTH_QUERY
+#ifdef CONFIG_N103_FIREBASE_AUTH_QUERY
     err = ESP_OK;
 #else
     auth_value_t auth = {0};
@@ -543,7 +543,7 @@ static void firebase_polling_task(void *argument)
         FIREBASE_RESOURCE_CONFIG,
     };
     const TickType_t poll_period =
-        pdMS_TO_TICKS(CONFIG_N100_FIREBASE_POLL_INTERVAL_MS);
+        pdMS_TO_TICKS(CONFIG_N103_FIREBASE_POLL_INTERVAL_MS);
     vTaskDelay(pdMS_TO_TICKS(3000));
 
     for (;;) {
@@ -576,10 +576,10 @@ esp_err_t firebase_client_start(firebase_document_callback_t callback, void *con
     auth_value_t auth = {0};
     esp_err_t auth_err = get_auth_value(&auth);
     if (auth_err != ESP_OK) {
-        if (CONFIG_N100_FIREBASE_AUTH_TOKEN[0] == '\0') {
+        if (CONFIG_N103_FIREBASE_AUTH_TOKEN[0] == '\0') {
             ESP_LOGE(TAG, "Set the Firebase auth token in menuconfig before starting the client");
         }
-        return CONFIG_N100_FIREBASE_AUTH_TOKEN[0] == '\0'
+        return CONFIG_N103_FIREBASE_AUTH_TOKEN[0] == '\0'
                    ? ESP_ERR_INVALID_STATE
                    : auth_err;
     }

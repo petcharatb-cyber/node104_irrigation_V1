@@ -22,21 +22,23 @@
   "idf.openOcdConfigs": [
     "board/esp32s3-builtin.cfg"
   ],
-  "idf.port": "COM6",
+  "idf.port": "COM9",
   "idf.currentSetup": "C:\\esp\\v6.0.1\\esp-idf",
   "idf.customExtraVars": {
     "IDF_TARGET": "esp32s3"
   },
+  "idf.buildPath": "${workspaceFolder}/build/node103",
   "clangd.path": "C:\\Espressif\\tools\\esp-clang\\esp-20.1.1_20250829\\esp-clang\\bin\\clangd.exe",
   "clangd.arguments": [
     "--background-index",
     "--query-driver=**",
-    "--compile-commands-dir=c:\\ESP32_IDF_PROJECT\\smart_garden\\node100_irrigation_master\\build"
+    "--compile-commands-dir=c:\\ESP32_IDF_PROJECT\\smart_garden\\node103_irrigation_V1\\build\\node103"
   ],
   "chat.tools.terminal.autoApprove": {
     "/^\\$env:IDF_TOOLS_PATH; \\$env:IDF_PYTHON_ENV_PATH; Test-Path 'C:\\\\Users\\\\User\\\\\\.espressif\\\\tools\\.json'; if \\(Test-Path 'C:\\\\Users\\\\User\\\\\\.espressif\\\\tools\\.json'\\) \\{ Get-Content 'C:\\\\Users\\\\User\\\\\\.espressif\\\\tools\\.json' \\| Select-Object -First 80 \\}$/": {
       "approve": true,
       "matchCommandLine": true
     }
-  }
+  },
+  "liveServer.settings.port": 5501
 }
