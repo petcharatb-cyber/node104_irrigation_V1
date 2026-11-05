@@ -31,14 +31,14 @@ typedef struct {
 } zone_gpio_t;
 
 static const zone_gpio_t s_zone_gpios[VALVE_ZONE_COUNT] = {
-    {CONFIG_N103_BALL_VALVE_A_OPEN_GPIO, CONFIG_N103_BALL_VALVE_A_CLOSE_GPIO,
-     CONFIG_N103_SOLENOID_A_GPIO},
-    {CONFIG_N103_BALL_VALVE_B_OPEN_GPIO, CONFIG_N103_BALL_VALVE_B_CLOSE_GPIO,
-     CONFIG_N103_SOLENOID_B_GPIO},
-    {CONFIG_N103_BALL_VALVE_C_OPEN_GPIO, CONFIG_N103_BALL_VALVE_C_CLOSE_GPIO,
-     CONFIG_N103_SOLENOID_C_GPIO},
+    {CONFIG_N104_BALL_VALVE_A_OPEN_GPIO, CONFIG_N104_BALL_VALVE_A_CLOSE_GPIO,
+     CONFIG_N104_SOLENOID_A_GPIO},
+    {CONFIG_N104_BALL_VALVE_B_OPEN_GPIO, CONFIG_N104_BALL_VALVE_B_CLOSE_GPIO,
+     CONFIG_N104_SOLENOID_B_GPIO},
+    {CONFIG_N104_BALL_VALVE_C_OPEN_GPIO, CONFIG_N104_BALL_VALVE_C_CLOSE_GPIO,
+     CONFIG_N104_SOLENOID_C_GPIO},
 };
-static const gpio_num_t s_pump_gpio = CONFIG_N103_MAIN_PUMP_RELAY_GPIO;
+static const gpio_num_t s_pump_gpio = CONFIG_N104_MAIN_PUMP_RELAY_GPIO;
 static const char *const s_zone_names[VALVE_ZONE_COUNT] = {"zone_a", "zone_b", "zone_c"};
 static portMUX_TYPE s_state_mux = portMUX_INITIALIZER_UNLOCKED;
 static bool s_desired_open[VALVE_ZONE_COUNT];
@@ -58,9 +58,9 @@ static uint8_t s_timer_count[VALVE_ZONE_COUNT];
 static uint16_t s_timer_open_minute[VALVE_ZONE_COUNT][VALVE_MAX_TIMER_INTERVALS];
 static uint16_t s_timer_close_minute[VALVE_ZONE_COUNT][VALVE_MAX_TIMER_INTERVALS];
 static uint32_t s_ball_valve_run_time_seconds =
-    CONFIG_N103_BALL_VALVE_RUN_TIME_SECONDS;
+    CONFIG_N104_BALL_VALVE_RUN_TIME_SECONDS;
 static uint32_t s_solenoid_close_delay_seconds =
-    CONFIG_N103_SOLENOID_CLOSE_DELAY_SECONDS;
+    CONFIG_N104_SOLENOID_CLOSE_DELAY_SECONDS;
 
 static bool parse_clock_minute(const cJSON *value, uint16_t *minute_out)
 {
@@ -153,14 +153,14 @@ static esp_err_t validate_output_gpios(void)
     for (size_t index = 0; index < output_count; ++index) {
         const gpio_num_t gpio = output_gpios[index];
         if (!GPIO_IS_VALID_GPIO(gpio) ||
-            gpio == CONFIG_N103_I2C_SDA_GPIO ||
-            gpio == CONFIG_N103_I2C_SCL_GPIO ||
-            gpio == CONFIG_N103_RTC_INT_GPIO ||
-            gpio == CONFIG_N103_SOIL_MOISTURE_GPIO ||
-            gpio == CONFIG_N103_FLOW_ZONE_A_GPIO ||
-            gpio == CONFIG_N103_FLOW_ZONE_B_GPIO ||
-            gpio == CONFIG_N103_FLOW_ZONE_C_GPIO ||
-            gpio == CONFIG_N103_FLOW_MAIN_GPIO) {
+            gpio == CONFIG_N104_I2C_SDA_GPIO ||
+            gpio == CONFIG_N104_I2C_SCL_GPIO ||
+            gpio == CONFIG_N104_RTC_INT_GPIO ||
+            gpio == CONFIG_N104_SOIL_MOISTURE_GPIO ||
+            gpio == CONFIG_N104_FLOW_ZONE_A_GPIO ||
+            gpio == CONFIG_N104_FLOW_ZONE_B_GPIO ||
+            gpio == CONFIG_N104_FLOW_ZONE_C_GPIO ||
+            gpio == CONFIG_N104_FLOW_MAIN_GPIO) {
             ESP_LOGE(TAG, "Relay GPIO%d is invalid or already assigned", gpio);
             return ESP_ERR_INVALID_ARG;
         }
@@ -663,10 +663,10 @@ esp_err_t valve_controller_apply_firebase_config(const cJSON *document)
 
     const uint32_t run_time_seconds =
         run_time != NULL ? (uint32_t)run_time->valuedouble
-                         : CONFIG_N103_BALL_VALVE_RUN_TIME_SECONDS;
+                         : CONFIG_N104_BALL_VALVE_RUN_TIME_SECONDS;
     const uint32_t close_delay_seconds =
         close_delay != NULL ? (uint32_t)close_delay->valuedouble
-                            : CONFIG_N103_SOLENOID_CLOSE_DELAY_SECONDS;
+                            : CONFIG_N104_SOLENOID_CLOSE_DELAY_SECONDS;
     const bool use_solenoid = solenoid_enabled_setting == NULL ||
                               cJSON_IsTrue(solenoid_enabled_setting);
 

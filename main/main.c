@@ -715,7 +715,7 @@ void app_main(void)
         xTaskCreate(gpio19_monitor_task, "gpio19_monitor", 2048, NULL, 2, NULL) != pdPASS) {
         ESP_LOGE(TAG, "Could not create GPIO19 monitor task");
     }
-    esp_err_t err = ds3231_init(CONFIG_N103_I2C_SDA_GPIO, CONFIG_N103_I2C_SCL_GPIO);
+    esp_err_t err = ds3231_init(CONFIG_N104_I2C_SDA_GPIO, CONFIG_N104_I2C_SCL_GPIO);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "DS3231 initialization failed: %s", esp_err_to_name(err));
         return;
@@ -754,7 +754,7 @@ void app_main(void)
         return;
     }
 
-    err = wifi_manager_init(CONFIG_N103_WIFI_SSID, CONFIG_N103_WIFI_PASSWORD);
+    err = wifi_manager_init(CONFIG_N104_WIFI_SSID, CONFIG_N104_WIFI_PASSWORD);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Wi-Fi initialization failed: %s", esp_err_to_name(err));
         return;

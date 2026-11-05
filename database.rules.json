@@ -1,0 +1,94 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "node100": {
+      "telemetry": {
+        ".read": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'",
+        ".write": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'"
+      },
+      "status": {
+        ".read": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'",
+        ".write": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'"
+      },
+      "commands": {
+        ".read": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'",
+        ".write": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'"
+      },
+      "history": {
+        ".read": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'",
+        ".write": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'"
+      }
+    },
+    "node100_config": {
+      ".read": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'",
+      ".write": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'"
+    },
+    "node102": {
+      "telemetry": {
+        ".read": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'",
+        ".write": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'"
+      },
+      "status": {
+        ".read": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'",
+        ".write": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'"
+      },
+      "commands": {
+        ".read": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'",
+        ".write": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'"
+      },
+      "history": {
+        ".read": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'",
+        ".write": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'"
+      }
+    },
+    "node102_config": {
+      ".read": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'",
+      ".write": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'"
+    },
+    "node103": {
+      "telemetry": {
+        ".read": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'",
+        ".write": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'"
+      },
+      "status": {
+        ".read": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'",
+        ".write": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'"
+      },
+      "commands": {
+        ".read": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'",
+        ".write": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'"
+      },
+      "history": {
+        ".read": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'",
+        ".write": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'"
+      }
+    },
+    "node103_config": {
+      ".read": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'",
+      ".write": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'"
+    },
+    "node104": {
+      "telemetry": {
+        ".read": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'",
+        ".write": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'"
+      },
+      "status": {
+        ".read": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'",
+        ".write": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'"
+      },
+      "commands": {
+        ".read": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'",
+        ".write": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'"
+      },
+      "history": {
+        ".read": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'",
+        ".write": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'"
+      }
+    },
+    "node104_config": {
+      ".read": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'",
+      ".write": "auth != null && auth.uid == 'uCi4jD7Y6rOaAn7pNGmrAyt13TJ3'"
+    }
+  }
+}

@@ -3,7 +3,7 @@
     {
       "name": "ESP-IDF",
       "compilerPath": "",
-      "compileCommands": "${workspaceFolder}/build/node103/compile_commands.json",
+      "compileCommands": "${workspaceFolder}/build/node104/compile_commands.json",
       "intelliSenseMode": "gcc-x86",
       "includePath": [
         "${workspaceFolder}/**"

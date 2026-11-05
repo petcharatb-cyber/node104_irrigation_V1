@@ -2,10 +2,14 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <!-- เชื่อมต่อ PWA Manifest และตั้งค่า Theme -->
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#2E7D32">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Smart Garden">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1146/1146115.png">
     
     <title>Agriculture Management System</title>
@@ -38,9 +42,12 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 12px 20px;
             padding: 12px 20px;
             box-shadow: var(--shadow);
         }
+
+        .top-bar-left { min-width: 0; }
 
         .top-bar-left h1 {
             font-size: 1.2rem;
@@ -49,10 +56,14 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            line-height: 1.2;
         }
+
+        .top-bar-left h1 .material-icons { flex: 0 0 auto; }
 
         .top-bar-right {
             display: flex;
+            flex: 0 0 auto;
             align-items: center;
             gap: 10px;
         }
@@ -67,11 +78,38 @@
             align-items: center;
             gap: 5px;
             font-size: 0.9rem;
+            white-space: nowrap;
             transition: background 0.3s;
             text-decoration: none;
         }
+        .btn-home .material-icons { font-size: 1.2em; }
         .btn-home:hover { background-color: rgba(255, 255, 255, 0.3); }
         .top-bar-right .btn-home { cursor: pointer; }
+
+        @media (max-width: 600px) {
+            .top-bar {
+                flex-wrap: wrap;
+                gap: 10px;
+                padding: 12px 16px;
+            }
+
+            .top-bar-left,
+            .top-bar-right { width: 100%; }
+
+            .top-bar-left h1 {
+                font-size: clamp(1rem, 5vw, 1.2rem);
+            }
+
+            .top-bar-right {
+                justify-content: flex-end;
+                gap: 8px;
+            }
+
+            .btn-home {
+                min-height: 40px;
+                padding: 7px 14px;
+            }
+        }
 
         /* ==================== App Container & Cards ==================== */
         .app-container {
@@ -220,7 +258,11 @@
                 <h1><i class="material-icons">eco</i> Agriculture Management System</h1>
             </div>
             <div class="top-bar-right">
-                <a class="btn-home" href="Node103_ IMS_Master.html" aria-label="กลับหน้าหลัก" title="กลับหน้าหลัก">
+                <button class="btn-home" onclick="navigateTo('view-dashboard')" aria-label="ย้อนกลับ" title="ย้อนกลับ">
+                    <i class="material-icons" aria-hidden="true">arrow_back</i>
+                    <span>ย้อนกลับ</span>
+                </button>
+                <a class="btn-home" href="Node100_ IMS_Master.html" aria-label="กลับหน้าหลัก" title="กลับหน้าหลัก">
                     <i class="material-icons" aria-hidden="true">home</i>
                     <span>Home</span>
                 </a>
@@ -536,6 +578,21 @@
             <section id="view-reporting" class="view-section">
                 <div class="card-header-main">
                     <i class="material-icons">bar_chart</i> Reporting (การค้นหาและรายงานผล)
+                </div>
+
+                <div class="card form-card">
+                    <div class="card-header" onclick="toggleForm('report-working-daily', this)">
+                        Working Daily <i class="material-icons">expand_more</i>
+                    </div>
+                    <div id="report-working-daily" class="form-content">
+                        <div class="form-group">
+                            <label for="working-daily-date">เลือกวันที่:</label>
+                            <input id="working-daily-date" type="date" onchange="loadWorkingDaily()">
+                        </div>
+                        <div id="working-daily-results" class="report-result-container" aria-live="polite">
+                            <div style="text-align:center; color:#777;">กำลังเตรียมข้อมูล...</div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- 3.1 ค้นหาทั่วไป -->
@@ -903,13 +960,15 @@
                 
                 const calDate = document.getElementById('calendar-date');
                 if(calDate && !calDate.value) {
-                    const today = new Date();
-                    const year = today.getFullYear();
-                    const month = String(today.getMonth() + 1).padStart(2, '0');
-                    const day = String(today.getDate()).padStart(2, '0');
-                    calDate.value = `${year}-${month}-${day}`;
+                    calDate.value = getLocalDateString();
                     loadCalendarEvents();
                 }
+
+                const workingDailyDate = document.getElementById('working-daily-date');
+                if(workingDailyDate && !workingDailyDate.value) {
+                    workingDailyDate.value = getLocalDateString();
+                }
+                loadWorkingDaily();
             } else {
                 loginSection.style.display = 'flex';
                 mainApp.style.display = 'none';
@@ -1243,6 +1302,127 @@
         // ==========================================
         // 4. ระบบรายงานผลและการค้นหา (Reporting System) 
         // ==========================================
+        let workingDailyRequestId = 0;
+
+        window.loadWorkingDaily = async function() {
+            const dateInput = document.getElementById('working-daily-date');
+            const resultContainer = document.getElementById('working-daily-results');
+            if(!dateInput || !resultContainer) return;
+
+            const selectedDate = dateInput.value;
+            if(!selectedDate) {
+                resultContainer.innerHTML = '<div style="color:#b43d39;">กรุณาเลือกวันที่</div>';
+                return;
+            }
+
+            const requestId = ++workingDailyRequestId;
+            const collections = [
+                { name: 'routines_water', label: 'การให้น้ำ' },
+                { name: 'routines_fertilizer', label: 'การใส่ปุ๋ย' },
+                { name: 'routines_disease', label: 'การป้องกันโรคและแมลง' },
+                { name: 'routines_care', label: 'การดูแลและรักษาต้นไม้' },
+                { name: 'routines_phenotyping', label: 'การประเมินลักษณะพืช' },
+                { name: 'routines_harvest', label: 'การติดตามการเก็บเกี่ยว' },
+                { name: 'routines_maintenance', label: 'การซ่อมบำรุง' },
+                { name: 'calendar_events', label: 'กิจกรรมตามปฏิทิน' }
+            ];
+            const fieldLabels = {
+                date: 'วันที่',
+                time: 'เวลา',
+                tree_name: 'ชื่อต้นไม้',
+                details: 'รายละเอียด',
+                method: 'วิธีการ',
+                fertilizer_type: 'ประเภทปุ๋ย',
+                formula: 'สูตรปุ๋ย',
+                amount_g: 'ปริมาณ (กรัม)',
+                chem_type: 'ประเภทสารเคมี',
+                chem_common_name: 'ชื่อสามัญสารเคมี',
+                microbe_type: 'ประเภทจุลินทรีย์',
+                microbe_common_name: 'ชื่อสามัญจุลินทรีย์',
+                prune: 'ตัดแต่งกิ่ง',
+                weed: 'กำจัดวัชพืช',
+                loosen: 'พรวนดิน',
+                repot: 'เปลี่ยนกระถาง',
+                checked: 'ดำเนินการ',
+                detail: 'รายละเอียด',
+                fruiting_date: 'วันที่ออกผล',
+                duration_days: 'ระยะเวลาเก็บเกี่ยว (วัน)',
+                notes: 'ข้อสังเกต',
+                system: 'ระบบที่ซ่อมบำรุง',
+                title: 'ชื่อกิจกรรม',
+                start_time: 'เวลาเริ่ม',
+                end_time: 'เวลาสิ้นสุด',
+                theme: 'สี',
+                recurring: 'ทำซ้ำทุกวัน',
+                alert: 'เปิดการแจ้งเตือน',
+                created_at: 'เวลาที่บันทึก'
+            };
+            const escapeHtml = value => String(value).replace(/[&<>"']/g, character => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            })[character]);
+            const formatValue = value => {
+                if(value === null || value === undefined || value === '') return '-';
+                if(typeof value === 'boolean') return value ? 'ใช่' : 'ไม่';
+                if(typeof value.toDate === 'function') return value.toDate().toLocaleString('th-TH');
+                return String(value);
+            };
+            const renderFields = (data, parentLabel = '') => Object.entries(data)
+                .filter(([key]) => key !== 'id')
+                .map(([key, value]) => {
+                    const label = fieldLabels[key] || key;
+                    const fullLabel = parentLabel ? `${parentLabel} / ${label}` : label;
+                    if(value && typeof value === 'object' && typeof value.toDate !== 'function') {
+                        return renderFields(value, fullLabel);
+                    }
+                    return `<div style="display:flex; gap:8px; padding:4px 0; border-bottom:1px solid #eee;">
+                        <strong style="min-width:110px;">${escapeHtml(fullLabel)}:</strong>
+                        <span style="overflow-wrap:anywhere;">${escapeHtml(formatValue(value))}</span>
+                    </div>`;
+                }).join('');
+
+            resultContainer.innerHTML = '<div style="text-align:center; color:#777;"><i class="material-icons" style="animation: spin 2s linear infinite;">hourglass_empty</i> กำลังโหลดข้อมูล...</div>';
+
+            try {
+                const snapshots = await Promise.all(collections.map(({ name }) =>
+                    getDocs(query(collection(db, name), where('date', '==', selectedDate)))
+                ));
+                if(requestId !== workingDailyRequestId) return;
+
+                const records = [];
+                snapshots.forEach((snapshot, index) => {
+                    snapshot.forEach(documentSnapshot => {
+                        records.push({
+                            category: collections[index].label,
+                            data: { id: documentSnapshot.id, ...documentSnapshot.data() }
+                        });
+                    });
+                });
+                records.sort((a, b) =>
+                    String(a.data.time || '').localeCompare(String(b.data.time || '')) ||
+                    a.category.localeCompare(b.category, 'th')
+                );
+
+                if(records.length === 0) {
+                    resultContainer.innerHTML = '<div style="text-align:center; color:#777; padding:16px;">ไม่พบรายการทำงานในวันที่เลือก</div>';
+                    return;
+                }
+
+                resultContainer.innerHTML = `<div style="margin-bottom:12px; color:var(--primary-green); font-weight:bold;">พบ ${records.length} รายการ</div>` +
+                    records.map(({ category, data }) => `<article style="margin-bottom:12px; padding:14px; border:1px solid #e3ebe5; border-left:4px solid var(--primary-green); border-radius:8px; background:#fff;">
+                        <h3 style="margin-bottom:8px; color:var(--primary-green); font-size:1rem;">${escapeHtml(category)}${data.time ? ` · ${escapeHtml(data.time)}` : ''}</h3>
+                        ${renderFields(data)}
+                    </article>`).join('');
+            } catch(error) {
+                if(requestId !== workingDailyRequestId) return;
+                console.error('Error loading Working Daily records:', error);
+                resultContainer.innerHTML = '<div style="color:#b43d39;">โหลดข้อมูล Working Daily ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง</div>';
+            }
+        };
+
         window.searchData = async function(category, event) {
             const formContent = event.currentTarget.closest('.form-content');
             
@@ -1654,7 +1834,16 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
             
             if(targetViewId === 'view-calendar') loadCalendarEvents();
+            if(targetViewId === 'view-reporting') loadWorkingDaily();
         };
+
+        function getLocalDateString() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
 
         window.toggleForm = function(formId, headerElement) {
             const form = document.getElementById(formId);

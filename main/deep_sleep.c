@@ -10,10 +10,10 @@ static const char *TAG = "deep_sleep";
 
 esp_err_t deep_sleep_until(const struct tm *wake_time)
 {
-    const gpio_num_t int_gpio = CONFIG_N103_RTC_INT_GPIO;
+    const gpio_num_t int_gpio = CONFIG_N104_RTC_INT_GPIO;
     if (wake_time == NULL || !RTC_GPIO_IS_VALID_GPIO(int_gpio) ||
-        int_gpio == CONFIG_N103_I2C_SDA_GPIO ||
-        int_gpio == CONFIG_N103_I2C_SCL_GPIO) {
+        int_gpio == CONFIG_N104_I2C_SDA_GPIO ||
+        int_gpio == CONFIG_N104_I2C_SCL_GPIO) {
         return ESP_ERR_INVALID_ARG;
     }
 

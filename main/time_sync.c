@@ -21,7 +21,7 @@ static void event_handler(void *arg, esp_event_base_t event_base,
 
     if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         if (!s_sntp_initialized) {
-            esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG(CONFIG_N103_NTP_SERVER);
+            esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG(CONFIG_N104_NTP_SERVER);
             config.wait_for_sync = false;
             esp_err_t err = esp_netif_sntp_init(&config);
             if (err != ESP_OK) {
@@ -29,7 +29,7 @@ static void event_handler(void *arg, esp_event_base_t event_base,
                 return;
             }
             s_sntp_initialized = true;
-            ESP_LOGI(TAG, "SNTP started with server %s", CONFIG_N103_NTP_SERVER);
+            ESP_LOGI(TAG, "SNTP started with server %s", CONFIG_N104_NTP_SERVER);
         } else {
             esp_err_t err = esp_netif_sntp_start();
             if (err != ESP_OK) {
@@ -65,7 +65,7 @@ static void event_handler(void *arg, esp_event_base_t event_base,
 
 esp_err_t time_sync_init(void)
 {
-    if (setenv("TZ", CONFIG_N103_TIMEZONE, 1) != 0) {
+    if (setenv("TZ", CONFIG_N104_TIMEZONE, 1) != 0) {
         ESP_LOGE(TAG, "Could not configure timezone");
         return ESP_FAIL;
     }
@@ -84,6 +84,6 @@ esp_err_t time_sync_init(void)
         return err;
     }
 
-    ESP_LOGI(TAG, "Timezone configured: %s", CONFIG_N103_TIMEZONE);
+    ESP_LOGI(TAG, "Timezone configured: %s", CONFIG_N104_TIMEZONE);
     return ESP_OK;
 }

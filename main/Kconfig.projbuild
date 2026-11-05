@@ -1,24 +1,24 @@
-menu "Node103 Irrigation Master"
+menu "Node104 Irrigation Master"
 
-    config N103_WIFI_SSID
+    config N104_WIFI_SSID
         string "Wi-Fi SSID"
         default ""
 
-    config N103_WIFI_PASSWORD
+    config N104_WIFI_PASSWORD
         string "Wi-Fi password"
         default ""
 
-    config N103_I2C_SDA_GPIO
+    config N104_I2C_SDA_GPIO
         int "DS3231 I2C SDA GPIO"
         range 0 48
         default 8
 
-    config N103_I2C_SCL_GPIO
+    config N104_I2C_SCL_GPIO
         int "DS3231 I2C SCL GPIO"
         range 0 48
         default 9
 
-    config N103_RTC_INT_GPIO
+    config N104_RTC_INT_GPIO
         int "DS3231 SQW/INT GPIO (ESP32-S3 RTC GPIO)"
         range 0 21
         default 4
@@ -26,14 +26,14 @@ menu "Node103 Irrigation Master"
             GPIO connected to the DS3231 SQW/INT pin. This must be an RTC GPIO
             on ESP32-S3 (GPIO0-21) for EXT1 deep-sleep wakeup.
 
-    config N103_SOIL_MOISTURE_GPIO
+    config N104_SOIL_MOISTURE_GPIO
         int "Soil moisture sensor analog output GPIO (ADC1)"
         range 1 10
         default 1
         help
             Connect the sensor AO pin to this ESP32-S3 ADC1 GPIO.
 
-    config N103_SOIL_MOISTURE_DRY_RAW
+    config N104_SOIL_MOISTURE_DRY_RAW
         int "Soil moisture raw ADC value at dry calibration point"
         range 0 4095
         default 3000
@@ -41,7 +41,7 @@ menu "Node103 Irrigation Master"
             Set this to the averaged raw ADC reading when the sensor is in dry
             soil. This is a starting value and should be calibrated on-device.
 
-    config N103_SOIL_MOISTURE_WET_RAW
+    config N104_SOIL_MOISTURE_WET_RAW
         int "Soil moisture raw ADC value at saturated calibration point"
         range 0 4095
         default 1200
@@ -49,27 +49,27 @@ menu "Node103 Irrigation Master"
             Set this to the averaged raw ADC reading when the soil is saturated.
             This is a starting value and should be calibrated on-device.
 
-    config N103_FLOW_ZONE_A_GPIO
+    config N104_FLOW_ZONE_A_GPIO
         int "YF-S201B Zone A signal GPIO"
         range 0 48
         default 5
 
-    config N103_FLOW_ZONE_B_GPIO
+    config N104_FLOW_ZONE_B_GPIO
         int "YF-S201B Zone B signal GPIO"
         range 0 48
         default 6
 
-    config N103_FLOW_ZONE_C_GPIO
+    config N104_FLOW_ZONE_C_GPIO
         int "YF-S201B Zone C signal GPIO"
         range 0 48
         default 7
 
-    config N103_FLOW_MAIN_GPIO
+    config N104_FLOW_MAIN_GPIO
         int "YF-S201B main pump signal GPIO"
         range 0 48
         default 15
 
-    config N103_FLOW_PULSES_PER_LITER
+    config N104_FLOW_PULSES_PER_LITER
         int "Flow sensor calibration (pulses per liter)"
         range 1 100000
         default 450
@@ -77,106 +77,106 @@ menu "Node103 Irrigation Master"
             Starting nominal value for YF-S201B. Calibrate against a measured
             volume because the actual sensor factor can vary.
 
-    config N103_BALL_VALVE_A_OPEN_GPIO
+    config N104_BALL_VALVE_A_OPEN_GPIO
         int "Ball valve Zone A OPEN relay GPIO"
         range 0 48
         default 2
 
-    config N103_BALL_VALVE_A_CLOSE_GPIO
+    config N104_BALL_VALVE_A_CLOSE_GPIO
         int "Ball valve Zone A CLOSE relay GPIO"
         range 0 48
         default 10
 
-    config N103_BALL_VALVE_B_OPEN_GPIO
+    config N104_BALL_VALVE_B_OPEN_GPIO
         int "Ball valve Zone B OPEN relay GPIO"
         range 0 48
         default 11
 
-    config N103_BALL_VALVE_B_CLOSE_GPIO
+    config N104_BALL_VALVE_B_CLOSE_GPIO
         int "Ball valve Zone B CLOSE relay GPIO"
         range 0 48
         default 12
 
-    config N103_BALL_VALVE_C_OPEN_GPIO
+    config N104_BALL_VALVE_C_OPEN_GPIO
         int "Ball valve Zone C OPEN relay GPIO"
         range 0 48
         default 13
 
-    config N103_BALL_VALVE_C_CLOSE_GPIO
+    config N104_BALL_VALVE_C_CLOSE_GPIO
         int "Ball valve Zone C CLOSE relay GPIO"
         range 0 48
         default 14
 
-    config N103_SOLENOID_A_GPIO
+    config N104_SOLENOID_A_GPIO
         int "Solenoid valve Zone A relay GPIO"
         range 0 48
         default 16
 
-    config N103_SOLENOID_B_GPIO
+    config N104_SOLENOID_B_GPIO
         int "Solenoid valve Zone B relay GPIO"
         range 0 48
         default 17
 
-    config N103_SOLENOID_C_GPIO
+    config N104_SOLENOID_C_GPIO
         int "Solenoid valve Zone C relay GPIO"
         range 0 48
         default 18
 
-    config N103_MAIN_PUMP_RELAY_GPIO
+    config N104_MAIN_PUMP_RELAY_GPIO
         int "Main pump relay GPIO"
         range 0 48
         default 21
 
-    config N103_BALL_VALVE_RUN_TIME_SECONDS
+    config N104_BALL_VALVE_RUN_TIME_SECONDS
         int "Ball valve motor run time (seconds)"
         range 1 120
         default 25
 
-    config N103_SOLENOID_CLOSE_DELAY_SECONDS
+    config N104_SOLENOID_CLOSE_DELAY_SECONDS
         int "Solenoid close delay after ball valve closes (seconds)"
         range 0 300
         default 20
 
-    config N103_LEAK_GRACE_PERIOD_MS
+    config N104_LEAK_GRACE_PERIOD_MS
         int "Delay before checking for water leaks after both valves close (ms)"
         range 0 600000
         default 5000
 
-    config N103_NTP_SERVER
+    config N104_NTP_SERVER
         string "NTP server"
         default "pool.ntp.org"
 
-    config N103_TIMEZONE
+    config N104_TIMEZONE
         string "POSIX timezone"
         default "ICT-7"
 
-    config N103_FIREBASE_DATABASE_URL
+    config N104_FIREBASE_DATABASE_URL
         string "Firebase Realtime Database URL"
         default "https://smartgarden-v1-c83ce-default-rtdb.asia-southeast1.firebasedatabase.app"
         help
             Use the HTTPS database root URL without a trailing slash.
 
-    config N103_FIREBASE_TELEMETRY_PATH
+    config N104_FIREBASE_TELEMETRY_PATH
         string "Firebase sensor telemetry path"
-        default "node103/telemetry"
+        default "node104/telemetry"
 
-    config N103_FIREBASE_STATUS_PATH
+    config N104_FIREBASE_STATUS_PATH
         string "Firebase device status path"
-        default "node103/status"
+        default "node104/status"
 
-    config N103_FIREBASE_COMMANDS_PATH
+    config N104_FIREBASE_COMMANDS_PATH
         string "Firebase control commands path"
-        default "node103/commands"
+        default "node104/commands"
 
-    config N103_FIREBASE_CONFIG_PATH
+    config N104_FIREBASE_CONFIG_PATH
         string "Firebase system config path"
-        default "node103_config"
+        default "node104_config"
 
-    config N103_FIREBASE_HISTORY_PATH
+    config N104_FIREBASE_HISTORY_PATH
         string "Firebase statistics history path"
-        default "node103/history"
+        default "node104/history"
 
-    config N103_FIREBASE_AUTH_TOKEN
+    config N104_FIREBASE_AUTH_TOKEN
         string "Firebase auth token or legacy URL (keep local)"
         default ""
         help
@@ -187,21 +187,21 @@ menu "Node103 Irrigation Master"
             The default transport sends a Firebase ID token in the Authorization
             header.
 
-    choice N103_FIREBASE_AUTH_TRANSPORT
+    choice N104_FIREBASE_AUTH_TRANSPORT
         prompt "Firebase auth token transport"
-        default N103_FIREBASE_AUTH_HEADER
+        default N104_FIREBASE_AUTH_HEADER
 
-        config N103_FIREBASE_AUTH_HEADER
+        config N104_FIREBASE_AUTH_HEADER
             bool "Authorization Bearer header (recommended)"
 
-        config N103_FIREBASE_AUTH_QUERY
+        config N104_FIREBASE_AUTH_QUERY
             bool "URL query parameter (legacy tokens)"
             help
                 Use ?auth= only when required by a legacy Firebase token.
                 Query tokens may be exposed by URL logging.
     endchoice
 
-    config N103_FIREBASE_POLL_INTERVAL_MS
+    config N104_FIREBASE_POLL_INTERVAL_MS
         int "Firebase polling interval (milliseconds)"
         range 1000 3600000
         default 5000

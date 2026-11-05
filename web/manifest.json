@@ -1,0 +1,19 @@
+{
+  "id": "./",
+  "name": "Smart Garden Management",
+  "short_name": "Smart Garden",
+  "description": "Irrigation and smart garden management system",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f8f7",
+  "theme_color": "#f5f8f7",
+  "icons": [
+    {
+      "src": "./node101-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
